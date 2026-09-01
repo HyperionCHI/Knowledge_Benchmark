@@ -1,0 +1,236 @@
+/*
+ * Ionic Docs-inspired reading system for Knowledge Workbench.
+ * The values and layout are independently adapted to this product; no Ionic
+ * brand assets or Docusaurus runtime are bundled.
+ */
+
+body .ionic-doc-theme,
+body .ionic-editor-theme .cherry-previewer {
+  --ion-doc-blue: #1b6dff;
+  --ion-doc-blue-hover: rgba(27, 109, 255, .78);
+  --ion-doc-carbon: #03060b;
+  --ion-doc-body: #2c3547;
+  --ion-doc-intro: #46516a;
+  --ion-doc-muted: #667085;
+  --ion-doc-indigo: #24315e;
+  --ion-doc-line: #e2e7ee;
+  --ion-doc-code: #f1f3ff;
+  --ion-doc-active: #edf5ff;
+  color: var(--ion-doc-body);
+  font-family: -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) > :first-child,
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) .cherry-previewer > :first-child { margin-top: 0; }
+
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--ion-doc-carbon); font-weight: 700; line-height: 1.18; letter-spacing: -.035em; scroll-margin-top: 96px;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h1 { margin: 3.5rem 0 1rem; padding: 0; border: 0; font-size: clamp(40px, 6vw, 56px); }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h2 { margin: 3rem 0 .9rem; padding: 0; border: 0; font-size: 32px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h3 { margin: 2.25rem 0 .75rem; font-size: 24px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h4 { margin: 1.75rem 0 .65rem; font-size: 20px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h5 { margin: 1.5rem 0 .55rem; font-size: 17px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h6 { margin: 1.25rem 0 .45rem; font-size: 16px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(h1 + h2, h2 + h3, h3 + h4, h4 + h5, h5 + h6) { margin-top: .75rem; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(p, ul, ol, blockquote, table, pre, details) { margin-top: 0; margin-bottom: 1rem; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) p { color: var(--ion-doc-body); }
+body .doc-body.ionic-doc-theme > p:first-child { color: var(--ion-doc-intro); font-size: 20px; line-height: 1.72; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) a { color: var(--ion-doc-blue); font-weight: 500; text-decoration: none; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) a:hover { color: var(--ion-doc-blue-hover); }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(strong, b) { color: var(--ion-doc-carbon); font-weight: 600; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(ul, ol) { margin: .65rem 0 1rem; padding-left: 1.65rem; color: var(--ion-doc-body); line-height: 1.55; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) ul { list-style: disc; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) ol { list-style: decimal; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) ul ul { list-style: circle; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) ul ul ul { list-style: square; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) li { margin: .06rem 0; padding-left: .25rem; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) li > p { margin: 0; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) li::marker { color: #7682a0; font-weight: 600; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) li > :where(ul, ol) { margin: .08rem 0 .14rem; }
+
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) blockquote {
+  position: relative; border: 0; border-radius: 4px; padding: 1.45rem 2rem; color: var(--ion-doc-body); background: #edf5ff; box-shadow: none;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) blockquote::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; border-radius: 4px 0 0 4px; background: #176bff;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) blockquote > :last-child { margin-bottom: 0; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) blockquote p { color: inherit; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) hr { height: 1px; margin: 3rem 0; border: 0; background: var(--ion-doc-line); }
+
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :not(pre) > code {
+  position: relative; border: 0; border-radius: 4px; padding: .2rem .34rem; color: #394361; background: var(--ion-doc-code);
+  font-family: "SFMono-Regular", "Roboto Mono", Consolas, "Liberation Mono", Menlo, monospace; font-size: .95em; font-weight: 500;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) pre {
+  max-width: 100%; overflow: auto; border: 0; border-radius: 8px; padding: 1.25rem 1.4rem; color: #26324d; background: var(--ion-doc-code); box-shadow: none;
+  font-family: "SFMono-Regular", "Roboto Mono", Consolas, "Liberation Mono", Menlo, monospace; font-size: 13px; line-height: 1.5; tab-size: 4;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) pre code { border: 0; padding: 0; color: inherit; background: transparent; font: inherit; }
+
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) table {
+  display: block; width: 100%; max-width: 100%; overflow-x: auto; border: 0; border-radius: 8px; border-collapse: collapse; background: #fff; box-shadow: inset 0 0 0 1px #d6ddeb;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :where(th, td) {
+  min-width: 120px; border: 1px solid #d6ddeb; padding: .7rem .85rem; text-align: left; vertical-align: top; line-height: 1.6;
+}
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) th { color: var(--ion-doc-indigo); background: #f7f8fc; font-weight: 600; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) img { display: block; max-width: 100%; height: auto; margin: 2rem auto; border: 0; border-radius: 8px; box-shadow: none; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) .markdown-image-zoom-trigger { position: relative; width: 100%; max-width: 100%; display: flex; align-items: center; justify-content: center; margin: 2rem auto; border: 0; border-radius: 8px; padding: 0; background: transparent; cursor: zoom-in; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) .markdown-image-zoom-trigger > img { width: auto; max-width: 100%; flex: none; margin: 0; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) :is(.markdown-image-zoom-trigger, .mermaid-zoom-trigger):focus-visible { outline: 3px solid rgba(27, 109, 255, .42); outline-offset: 3px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) input[type="checkbox"] { width: 16px; height: 16px; margin: 0 .55rem 0 -1.35rem; accent-color: var(--ion-doc-blue); vertical-align: -2px; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) details { border: 1px solid var(--ion-doc-line); border-radius: 8px; padding: 0 1rem; background: #fff; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) summary { margin: 0 -1rem; padding: .85rem 1rem; color: var(--ion-doc-indigo); background: #f7f8fc; font-weight: 600; cursor: pointer; }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) details[open] summary { margin-bottom: 1rem; border-bottom: 1px solid var(--ion-doc-line); }
+body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) kbd { border: 1px solid #ccd4e1; border-bottom-width: 2px; border-radius: 4px; padding: 2px 6px; color: #394361; background: #fff; font-family: inherit; font-size: .82em; }
+
+/* Ionic-like document shell: navigation / 42rem article / page TOC. */
+body .docs-page .docs-masthead { min-height: 62px; align-items: center; margin: 0; padding: 0 0 18px; border-bottom: 1px solid #e9edf2; }
+body .docs-page .docs-masthead .eyebrow { display: none; }
+body .docs-page .docs-masthead h2 { margin: 0; color: #03060b; font-size: 20px; line-height: 1.25; letter-spacing: -.025em; }
+body .docs-page .docs-masthead p:last-child { margin-top: 3px; color: #6d7688; font-size: 12px; }
+body .docs-page .docs-masthead .primary { border-radius: 999px; padding: 9px 17px; background: #1b6dff; box-shadow: none; }
+body .docs-page .docs-layout { grid-template-columns: 280px minmax(0, 1fr); gap: 0; align-items: stretch; }
+body .docs-page .docs-layout > aside {
+  top: 76px; max-height: calc(100vh - 92px); margin-left: -20px; overflow-y: auto; border: 0; border-right: 1px solid #e5e9ef; border-radius: 0; padding: 25px 24px 42px 20px; background: transparent;
+}
+body .docs-page .doc-group { margin-bottom: 1.2rem; }
+body .docs-page .doc-group .doc-group-toggle {
+  justify-content: flex-start; gap: 7px; padding: 7px 10px; color: #151a24; font-size: 15px; font-weight: 600; text-align: left;
+}
+body .docs-page .doc-group .doc-group-toggle span { min-width: 0; overflow-wrap: anywhere; }
+body .docs-page .doc-group .doc-group-toggle small {
+  min-width: 20px; margin: 0; border-radius: 999px; padding: 1px 6px; color: #8993a6; background: #eef1f5; text-align: center; font-size: 10px; line-height: 16px;
+}
+body .docs-page .doc-group .doc-group-toggle > svg { margin-left: 1px; transition: transform .2s ease; }
+body .docs-page .doc-group.collapsed .doc-group-toggle > svg { transform: rotate(-90deg); }
+body .docs-page .doc-group > button:not(.doc-group-toggle) {
+  min-height: 34px; justify-content: flex-start; margin: 1px 0; border-radius: 6px; padding: 7px 10px 7px 22px; color: #3e4a67; text-align: left; font-size: 13px; font-weight: 500; line-height: 1.25; letter-spacing: -.01em;
+}
+body .docs-page .document-tree-icon { width: 16px; height: 16px; display: grid; flex: 0 0 16px; place-items: center; font-style: normal; }
+body .docs-page .document-tree-icon svg { display: block; }
+body .docs-page .doc-group > button:not(.doc-group-toggle):hover { color: #1b6dff; background: transparent; }
+body .docs-page .doc-group > button.active:not(.doc-group-toggle) { color: #1b6dff; background: #edf5ff; font-weight: 600; }
+body .sop-page .sop-product-node { margin: 2px 0 8px 10px; }
+body .sop-page :is(.sop-product-toggle, .sop-category-toggle, .sop-document-link) {
+  width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 7px; padding: 7px 8px;
+  color: #4d5c72; background: transparent; text-align: left; cursor: pointer;
+}
+body .sop-page .sop-product-toggle { color: #2e4059; font-weight: 700; }
+body .sop-page .sop-product-toggle > span, body .sop-page .sop-category-toggle > span, body .sop-page .sop-document-link > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .sop-page :is(.sop-product-toggle, .sop-category-toggle) > small { margin-left: auto; border-radius: 999px; padding: 1px 6px; color: #718096; background: #eef1f5; font-size: 8px; }
+body .sop-page :is(.sop-product-toggle, .sop-category-toggle) > svg:last-child { flex: none; transition: transform .18s ease; }
+body .sop-page :is(.sop-product-node, .sop-category-node).collapsed > :is(.sop-product-toggle, .sop-category-toggle) > svg:last-child { transform: rotate(-90deg); }
+body .sop-page .sop-product-toggle.active { color: #1b6dff; background: #f3f7ff; }
+body .sop-page .sop-category-node { margin: 2px 0 6px 18px; }
+body .sop-page .sop-category-toggle { padding-block: 6px; color: #52657e; font-size: 12px; font-weight: 700; }
+body .sop-page .sop-document-link { margin: 1px 0 1px 12px; width: calc(100% - 12px); color: #68778c; font-size: 12px; }
+body .sop-page .sop-document-link:hover { color: #1b6dff; }
+body .sop-page .sop-document-link.active { color: #1b6dff; background: #edf5ff; font-weight: 600; }
+body .sop-page .sop-main-column { min-width: 0; }
+body .sop-page .sop-empty-state { min-height: 420px; margin: 46px 36px; }
+body .sop-page .sop-main-column > .product-templates { width: min(100% - 72px, 56rem); margin: 0 auto 80px; }
+body .sop-page .sop-main-column > .sop-edit-head, body .sop-page .sop-main-column > .editor-shell { margin-right: 36px; margin-left: 36px; }
+body .document-reader {
+  display: grid; grid-template-columns: minmax(0, 42rem) 164px; justify-content: center; gap: clamp(38px, 4vw, 72px); min-width: 0; padding: 70px 36px 110px;
+}
+body .document-reader .doc-content { width: 100%; max-width: 42rem; min-height: 550px; border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none; }
+body .document-reader .doc-content > header { display: block; }
+body .document-reader .doc-content > header span { display: block; margin-bottom: 12px; color: #5367a0; font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: .08em; text-transform: uppercase; }
+body .document-reader .doc-content > header h1 { max-width: 100%; margin: 0; color: #03060b; font-size: clamp(40px, 5vw, 56px); font-weight: 700; line-height: 1.08; letter-spacing: -.045em; }
+body .document-reader .doc-head-actions { justify-content: flex-start; margin-top: 22px; }
+body .document-reader .doc-head-actions button { height: 32px; border: 0; border-radius: 6px; padding: 0 9px; color: #53617b; background: #f6f7fa; font-size: 12px; }
+body .document-reader .doc-head-actions button:hover { color: #1b6dff; background: #edf5ff; }
+body .document-reader .doc-head-actions button.danger-action { color: #bb3f47; }
+body .document-reader .meta { flex-wrap: wrap; margin: 18px 0 46px; color: #7b8495; font-size: 11px; }
+body .document-reader .doc-body { max-width: 100%; }
+body .document-reader .doc-key-points, body .document-reader .doc-attachment-section { margin-top: 5rem; }
+body .document-reader .knowledge-attachment-library { margin-top: 5rem; }
+body .document-reader .doc-key-points h2, body .document-reader .doc-attachment-section h2 { margin: 0 0 1.2rem; color: #03060b; font-size: 32px; line-height: 1.2; letter-spacing: -.035em; }
+body .document-reader .doc-key-points ol { padding-left: 1.65rem; color: #2c3547; font-size: 16px; line-height: 2; }
+body .document-reader .callout { position: relative; margin: 2rem 0; border: 0; border-radius: 4px; padding: 1.45rem 2rem; color: #2c3547; background: #edf5ff; font-size: 14px; line-height: 1.7; }
+body .document-reader .callout::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; border-radius: 4px 0 0 4px; background: #176bff; }
+body .document-reader .attachment { margin-top: 10px; border-color: #e0e5ed; border-radius: 8px; background: #fff; box-shadow: 0 2px 8px rgba(31, 48, 78, .035); }
+body .document-reader .ionic-page-toc { position: sticky; top: 88px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; border-bottom: 1px solid #e1e5ee; padding: 0 0 20px; }
+body .document-reader .ionic-page-toc > b { display: block; margin-bottom: 14px; color: #66729a; font-size: 10px; line-height: 1.2; letter-spacing: .08em; text-transform: uppercase; }
+body .document-reader .ionic-page-toc button { width: 100%; display: block; border: 0; padding: 5px 0; color: #53617b; background: transparent; text-align: left; font-size: 12px; line-height: 1.45; cursor: pointer; }
+body .document-reader .ionic-page-toc button.toc-level-2 { padding-left: 12px; }
+body .document-reader .ionic-page-toc button.toc-level-3 { padding-left: 24px; }
+body .document-reader .ionic-page-toc button.toc-level-4 { padding-left: 36px; }
+body .document-reader .ionic-page-toc button.toc-level-5 { padding-left: 48px; }
+body .document-reader .ionic-page-toc button.toc-level-6 { padding-left: 60px; }
+body .document-reader .ionic-page-toc button:hover, body .document-reader .ionic-page-toc button.active { color: #1b6dff; }
+body .document-reader .ionic-page-toc button.active { font-weight: 600; }
+
+body .sop-page .sop-edit-head { margin-bottom: 24px; }
+body .sop-page .sop-edit-head h1 { margin: 0; color: #03060b; font-size: clamp(32px, 4vw, 44px); line-height: 1.1; }
+body .sop-page .editor-actions > .primary { border-color: #1b6dff; color: #fff; background: #1b6dff; }
+
+body .product-template-preview.ionic-doc-theme, body .template-preview.ionic-doc-theme { font-size: 12px; line-height: 1.72; }
+body .template-preview.ionic-doc-theme { max-height: 360px; overflow: auto; white-space: normal; }
+body :is(.product-template-preview, .template-preview).ionic-doc-theme :where(h1, h2, h3) { margin-top: 1.5rem; font-size: 18px; }
+body .mermaid-diagram { position: relative; width: 100%; min-height: 88px; display: flex; align-items: center; justify-content: center; margin: 2rem 0; overflow-x: auto; border: 1px solid #e2e7ee; border-radius: 8px; padding: 1.25rem; color: inherit; background: #fff; font: inherit; text-align: initial; }
+body .mermaid-diagram svg { display: block; max-width: 100%; height: auto; margin: auto; }
+body .mermaid-rendered-svg { display: block; min-width: 0; }
+body .mermaid-zoom-trigger { cursor: zoom-in; }
+body .markdown-media-zoom-hint { position: absolute; right: 8px; top: 8px; border-radius: 5px; padding: 3px 7px; color: #fff; background: rgba(3, 10, 22, .68); opacity: 0; font-size: 10px; font-weight: 600; line-height: 1.4; pointer-events: none; transition: opacity .16s ease; }
+body :is(.markdown-image-zoom-trigger, .mermaid-zoom-trigger):is(:hover, :focus-visible) .markdown-media-zoom-hint { opacity: 1; }
+body .mermaid-loading { color: #667085; font-size: 13px; }
+body .mermaid-error { display: block; border-color: #f0c5c5; color: #9f3030; background: #fff7f7; }
+body .mermaid-error figcaption { margin-bottom: .75rem; font-weight: 700; }
+body .mermaid-error pre { margin-bottom: 0; }
+
+body .obsidian-callout { --callout-color: #176bff; position: relative; margin: 1.5rem 0; border-radius: 4px; padding: 1.2rem 1.5rem; color: #2c3547; background: #edf5ff; }
+body .obsidian-callout::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; border-radius: 4px 0 0 4px; background: var(--callout-color); }
+body .obsidian-callout > :last-child { margin-bottom: 0; }
+body .obsidian-callout > p:first-child { margin-bottom: .4rem; }
+body .obsidian-callout-warning, body .obsidian-callout-question { --callout-color: #bf7500; background: #fff8e8; }
+body .obsidian-callout-danger, body .obsidian-callout-failure, body .obsidian-callout-bug { --callout-color: #c43d4b; background: #fff2f3; }
+body .obsidian-callout-success, body .obsidian-callout-tip { --callout-color: #23845b; background: #eef9f3; }
+body .obsidian-wiki-link { border-bottom: 1px dashed currentColor; cursor: pointer; }
+body .obsidian-embed-missing { display: block; margin: 1rem 0; border: 1px dashed #d5a4a9; border-radius: 6px; padding: .8rem 1rem; color: #9f3030; background: #fff7f7; font-size: 13px; }
+body .obsidian-attachment-embed { display: inline-flex; align-items: center; margin: 1rem 0; border: 1px solid #cddcf6; border-radius: 6px; padding: .65rem .9rem; background: #f5f8ff; }
+
+@media (max-width: 1180px) {
+  body .document-reader { grid-template-columns: minmax(0, 42rem); }
+  body .document-reader .ionic-page-toc { display: none; }
+}
+
+@media (max-width: 820px) {
+  body .docs-page .docs-layout { grid-template-columns: 1fr; }
+  body .docs-page .docs-layout > aside { position: static; display: block; max-height: none; margin: 0; overflow: visible; border-right: 0; border-bottom: 1px solid #e5e9ef; padding: 15px 0 20px; }
+  body .docs-page .doc-group { min-width: 0; margin: 0 0 10px; }
+  body .document-reader { padding: 46px 14px 80px; }
+  body .sop-page .sop-main-column > .product-templates { width: calc(100% - 28px); }
+  body .sop-page .sop-main-column > .sop-edit-head, body .sop-page .sop-main-column > .editor-shell { margin-right: 14px; margin-left: 14px; }
+}
+
+@media (max-width: 560px) {
+  body .ionic-doc-theme, body .ionic-editor-theme .cherry-previewer { font-size: 15px; line-height: 1.72; }
+  body .docs-page .docs-masthead { align-items: flex-start; }
+  body .document-reader .doc-content > header h1 { font-size: 38px; }
+  body .document-reader .doc-head-actions { width: auto; }
+  body .document-reader .doc-head-actions button { flex: 0 1 auto; }
+  body .document-reader .meta { margin-bottom: 36px; }
+  body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h1 { font-size: 36px; }
+  body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h2, body .document-reader .doc-key-points h2, body .document-reader .doc-attachment-section h2 { margin-top: 2.5rem; font-size: 27px; }
+  body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) h3 { margin-top: 2rem; font-size: 21px; }
+  body :is(.ionic-doc-theme, .ionic-editor-theme .cherry-previewer) pre { padding: 1rem; }
+}
+
+/* Compact Markdown treatment inside template-card previews. */
+body .template-preview-content.ionic-doc-theme { font-size: 12px; line-height: 1.75; }
+body .template-preview-content.ionic-doc-theme p { white-space: pre-wrap; }
+body .template-preview-content.ionic-doc-theme :where(h1, h2, h3, h4, h5, h6) {
+  margin: 1.25rem 0 .55rem;
+  font-size: 18px;
+}
+body .template-preview-content.ionic-doc-theme :where(p, ul, ol, blockquote, table, pre, details) { margin-bottom: .85rem; }
+body .template-preview-content.ionic-doc-theme > :last-child { margin-bottom: 0; }
