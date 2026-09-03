@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatFileSize } from "../lib/format";
 import { ActionIcon, WorkspaceIcon } from "../lib/workspace-icons";
 import { KnowledgeMarkdown } from "./KnowledgeMarkdown";
 import type { KnowledgeAttachment } from "./KnowledgeDocumentEditorDialog";
-
-function formatBytes(size: number | null | undefined) {
-  if (!size) return "";
-  return size < 1024 * 1024 ? `${Math.max(1, Math.ceil(size / 1024))} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
 
 export function KnowledgeAttachmentLibrary({ scope, brand = "", product = "", documentId = "", libraryLabel = "通用资料与规章制度", currentIds, toast }: {
   scope: "doc" | "other-doc" | "sop";
@@ -58,7 +54,7 @@ export function KnowledgeAttachmentLibrary({ scope, brand = "", product = "", do
       return <article id={`knowledge-asset-${attachment.id}`} className="resource-template-card" key={attachment.id}>
         <div className="asset-card-icon"><WorkspaceIcon name={hasContent ? "templates" : "docs"} /></div>
         <div className="resource-template-identity"><span>{current.has(attachment.id) ? "当前文档引用" : `${attachment.referenceCount || 0} 篇文章引用`}{hasAttachment ? ` · v${attachment.version || 1}` : " · 纯文本"}</span><h3 title={attachment.title || attachment.name}>{attachment.title || attachment.name}</h3><p>{attachment.summary || (hasContent ? "可预览并复制的文本资料" : "共享附件资料")}</p></div>
-        {hasAttachment && <div className="resource-attachment-line"><ActionIcon name="open" /><div><b>{attachment.name}</b><small>{formatBytes(attachment.size)} · {attachment.type || "未知类型"}</small></div></div>}
+        {hasAttachment && <div className="resource-attachment-line"><ActionIcon name="open" /><div><b>{attachment.name}</b><small>{formatFileSize(attachment.size)} · {attachment.type || "未知类型"}</small></div></div>}
         {expandedId === attachment.id && hasContent && <div className="template-preview resource-template-preview"><KnowledgeMarkdown className="template-preview-content ionic-doc-theme" markdown={attachment.content || ""} /></div>}
         <footer>{hasContent && <button type="button" onClick={() => setExpandedId(expandedId === attachment.id ? null : attachment.id)}><ActionIcon name={expandedId === attachment.id ? "hide" : "show"} />{expandedId === attachment.id ? "收起" : "预览"}</button>}{hasContent && <button type="button" onClick={() => void copyContent(attachment)}><ActionIcon name={copyId === attachment.id ? "check" : "copy"} />{copyId === attachment.id ? "已复制" : "复制文本"}</button>}{hasAttachment && <a href={attachment.url} download><ActionIcon name="download" />下载附件</a>}</footer>
       </article>;

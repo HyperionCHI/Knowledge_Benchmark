@@ -5668,7 +5668,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 LICENSE
-Packages: lucide-react@1.31.0 (LICENSE), lucide@1.31.0 (LICENSE)
+Packages: lucide@1.31.0 (LICENSE)
 --------------------------------------------------------------------------------
 ISC License
 

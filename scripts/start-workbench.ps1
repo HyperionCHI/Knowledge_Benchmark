@@ -36,6 +36,19 @@ function Test-WorkbenchRunning([string]$Url) {
   } catch { return $false }
 }
 
+function Get-WorkbenchTrustedOrigins([int]$Port) {
+  $origins = @("http://localhost:$Port", "http://127.0.0.1:$Port")
+  try {
+    $addresses = [System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) |
+      Where-Object { $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork } |
+      ForEach-Object { $_.IPAddressToString }
+    $origins += $addresses | ForEach-Object { "http://${_}:$Port" }
+  } catch {
+    Write-Warning "Unable to detect LAN addresses. Set BETTER_AUTH_TRUSTED_ORIGINS before starting the workbench."
+  }
+  return ($origins | Sort-Object -Unique) -join ","
+}
+
 try {
   $node = Find-NodeExecutable
   if (-not $node) { throw "Node.js was not found. Install Node.js 22 or newer and try again." }
@@ -44,10 +57,12 @@ try {
   if ($nodeMajor -lt 22) { throw "Node.js $nodeMajor is too old. Node.js 22 or newer is required." }
   $env:PATH = "$(Split-Path -Parent $node);$env:PATH"
 
-  $url = "http://localhost:3001/"
+  $port = 3001
+  if (-not $env:BETTER_AUTH_URL) { $env:BETTER_AUTH_URL = "http://localhost:$port" }
+  if (-not $env:BETTER_AUTH_TRUSTED_ORIGINS) { $env:BETTER_AUTH_TRUSTED_ORIGINS = Get-WorkbenchTrustedOrigins $port }
+  $url = "$($env:BETTER_AUTH_URL.TrimEnd('/'))/"
   $healthUrl = "http://127.0.0.1:3001/"
-  $env:PORT = "3001"
-  $env:BETTER_AUTH_URL = "http://localhost:3001"
+  $env:PORT = "$port"
 
   if (Test-WorkbenchRunning $healthUrl) {
     Write-Host "Knowledge Workbench is already running. Opening the browser..." -ForegroundColor Green

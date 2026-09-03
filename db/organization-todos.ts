@@ -1,33 +1,30 @@
-import { type Options, type Weekday } from "rrule";
-import rrulePackage from "rrule/dist/es5/rrule.js";
 import { sqlite } from "./local";
-import { todayInTimeZone } from "./todos";
-
-const { RRule, rrulestr } = rrulePackage;
+import {
+  buildRecurrenceRule,
+  daysBetween,
+  nextRecurrenceDate,
+  normalizeRecurrenceInput,
+  recurrenceDatesBetween,
+  todayInTimeZone,
+  type CommonRecurrenceInput,
+  type TodoFrequency,
+  type TodoMissedPolicy,
+} from "./todo-recurrence";
 
 export type OrganizationTodoAudience = "all" | "custom";
-export type OrganizationTodoInput = {
+export type OrganizationTodoInput = CommonRecurrenceInput & {
   title?: string;
   description?: string;
   audienceType?: OrganizationTodoAudience;
   recipientIds?: string[];
-  frequency?: "daily" | "weekly" | "monthly";
-  interval?: number;
-  weekdays?: number[];
-  monthDay?: number | null;
-  timezone?: string;
-  startDate?: string;
-  endDate?: string | null;
-  maxOccurrences?: number | null;
-  missedPolicy?: "latest_only" | "all" | "skip";
   applyToCurrent?: boolean;
 };
 
 type TemplateRow = {
   id: string; title: string; description: string; created_by: string; audience_type: OrganizationTodoAudience;
-  frequency: "daily" | "weekly" | "monthly"; interval: number; weekdays_json: string; month_day: number | null;
+  frequency: TodoFrequency; interval: number; weekdays_json: string; month_day: number | null;
   rrule: string; timezone: string; start_date: string; end_date: string | null; max_occurrences: number | null;
-  generated_count: number; missed_policy: "latest_only" | "all" | "skip"; paused: number;
+  generated_count: number; missed_policy: TodoMissedPolicy; paused: number;
   next_occurrence_date: string | null; created_at: string; updated_at: string; archived_at: string | null;
 };
 type OccurrenceRow = { id: string; template_id: string; title: string; description: string; audience_type: OrganizationTodoAudience; scheduled_for: string; status: "active" | "cancelled"; created_at: string; updated_at: string };
@@ -37,9 +34,6 @@ type JoinedAssignment = AssignmentRow & {
   title: string; description: string; audience_type: OrganizationTodoAudience; scheduled_for: string;
   occurrence_status: "active" | "cancelled"; template_id: string;
 };
-
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const weekdayMap: Record<number, Weekday> = { 1: RRule.MO, 2: RRule.TU, 3: RRule.WE, 4: RRule.TH, 5: RRule.FR, 6: RRule.SA, 7: RRule.SU };
 
 export function ensureOrganizationTodoSchema() {
   const statements = [
@@ -86,58 +80,31 @@ export function listOrganizationTodoUsers() {
   return activeUsers().map((user) => ({ id: user.id, name: user.name, username: user.username || "", role: user.role }));
 }
 
-function validTimezone(value: string) {
-  try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
-}
-
-function dateAtUtc(value: string) { return new Date(`${value}T12:00:00.000Z`); }
-function dateKey(value: Date) { return value.toISOString().slice(0, 10); }
-
 function normalizeInput(input: OrganizationTodoInput, fallback?: TemplateRow) {
-  const timezone = input.timezone?.trim() || fallback?.timezone || "Asia/Shanghai";
-  if (!validTimezone(timezone)) throw new Error("时区无效。");
   const title = input.title?.trim() || fallback?.title || "";
   if (!title || title.length > 160) throw new Error("任务名称应为 1 至 160 个字符。");
   const description = input.description === undefined ? fallback?.description || "" : input.description.trim();
   if (description.length > 2000) throw new Error("任务说明不能超过 2000 个字符。");
   const audienceType = input.audienceType || fallback?.audience_type || "all";
   if (!(["all", "custom"] as string[]).includes(audienceType)) throw new Error("接收范围无效。");
-  const frequency = input.frequency || fallback?.frequency || "weekly";
-  if (!(["daily", "weekly", "monthly"] as string[]).includes(frequency)) throw new Error("重复周期无效。");
-  const interval = Math.floor(Number(input.interval ?? fallback?.interval ?? 1));
-  if (interval < 1 || interval > 99) throw new Error("重复间隔应为 1 至 99。");
-  const startDate = input.startDate || fallback?.start_date || todayInTimeZone(timezone);
-  if (!datePattern.test(startDate)) throw new Error("开始日期无效。");
-  const endDate = input.endDate === undefined ? fallback?.end_date || null : input.endDate;
-  if (endDate && (!datePattern.test(endDate) || endDate < startDate)) throw new Error("结束日期不能早于开始日期。");
-  const fallbackWeekdays = fallback ? JSON.parse(fallback.weekdays_json) as number[] : [dateAtUtc(startDate).getUTCDay() || 7];
-  const weekdays = [...new Set((input.weekdays || fallbackWeekdays).map(Number))].filter((day) => day >= 1 && day <= 7).sort();
-  if (frequency === "weekly" && !weekdays.length) throw new Error("每周任务至少选择一个星期。");
-  const requestedMonthDay = input.monthDay === undefined ? fallback?.month_day : input.monthDay;
-  const monthDay = frequency === "monthly" ? Number(requestedMonthDay ?? Number(startDate.slice(8, 10))) : null;
-  if (monthDay !== null && monthDay !== -1 && (monthDay < 1 || monthDay > 31)) throw new Error("每月日期应为 1 至 31，或选择每月最后一天。");
-  const rawMax = input.maxOccurrences === undefined ? fallback?.max_occurrences : input.maxOccurrences;
-  const maxOccurrences = rawMax == null ? null : Math.floor(Number(rawMax));
-  if (maxOccurrences !== null && (maxOccurrences < 1 || maxOccurrences > 10000)) throw new Error("执行次数应为 1 至 10000。");
-  const missedPolicy = input.missedPolicy || fallback?.missed_policy || "latest_only";
-  if (!(["latest_only", "all", "skip"] as string[]).includes(missedPolicy)) throw new Error("错过周期处理方式无效。");
+  const recurrence = normalizeRecurrenceInput(input, fallback ? {
+    frequency: fallback.frequency,
+    interval: fallback.interval,
+    weekdays: JSON.parse(fallback.weekdays_json) as number[],
+    monthDay: fallback.month_day,
+    timezone: fallback.timezone,
+    startDate: fallback.start_date,
+    endDate: fallback.end_date,
+    maxOccurrences: fallback.max_occurrences,
+    missedPolicy: fallback.missed_policy,
+  } : undefined, {
+    defaultFrequency: "weekly",
+    maxOccurrencesError: "执行次数应为 1 至 10000。",
+    missedPolicyError: "错过周期处理方式无效。",
+  });
   const recipientIds = [...new Set((input.recipientIds || []).map(String).filter(Boolean))];
   if (audienceType === "custom" && !fallback && !recipientIds.length) throw new Error("指定人员任务至少选择一名接收人。");
-  return { title, description, audienceType, frequency, interval, weekdays, monthDay, timezone, startDate, endDate, maxOccurrences, missedPolicy, recipientIds };
-}
-
-function buildRule(input: ReturnType<typeof normalizeInput>) {
-  const frequency = input.frequency === "daily" ? RRule.DAILY : input.frequency === "weekly" ? RRule.WEEKLY : RRule.MONTHLY;
-  const options: Partial<Options> = { freq: frequency, interval: input.interval, dtstart: dateAtUtc(input.startDate) };
-  if (input.endDate) options.until = dateAtUtc(input.endDate);
-  if (input.frequency === "weekly") options.byweekday = input.weekdays.map((day) => weekdayMap[day]);
-  if (input.frequency === "monthly") options.bymonthday = input.monthDay ?? Number(input.startDate.slice(8, 10));
-  return new RRule(options).toString();
-}
-
-function nextRuleDate(ruleText: string, afterDate: string) {
-  const next = rrulestr(ruleText).after(dateAtUtc(afterDate), false);
-  return next ? dateKey(next) : null;
+  return { title, description, audienceType, ...recurrence, recipientIds };
 }
 
 function recipientsForTemplate(template: TemplateRow) {
@@ -180,14 +147,13 @@ export function materializeOrganizationTodos(today = todayInTimeZone()) {
     if (!cursor || cursor > today) continue;
     const remaining = template.max_occurrences == null ? Number.MAX_SAFE_INTEGER : Math.max(0, template.max_occurrences - template.generated_count);
     if (!remaining) continue;
-    const rule = rrulestr(template.rrule);
-    let dueDates = rule.between(dateAtUtc(cursor), dateAtUtc(today), true).map(dateKey).filter((date) => date >= cursor);
-    let nextCursor = nextRuleDate(template.rrule, today);
+    let dueDates = recurrenceDatesBetween(template.rrule, cursor, today).filter((date) => date >= cursor);
+    let nextCursor = nextRecurrenceDate(template.rrule, today);
     if (template.missed_policy === "latest_only") dueDates = dueDates.length ? [dueDates.at(-1)!] : [];
     if (template.missed_policy === "skip") dueDates = dueDates.filter((date) => date === today);
     if (template.missed_policy === "all" && dueDates.length > 500) {
       dueDates = dueDates.slice(0, 500);
-      nextCursor = nextRuleDate(template.rrule, dueDates.at(-1)!);
+      nextCursor = nextRecurrenceDate(template.rrule, dueDates.at(-1)!);
     }
     let generated = 0;
     for (const date of dueDates.slice(0, remaining)) generated += createOccurrence(template, date);
@@ -251,7 +217,7 @@ export function createOrganizationTodoTemplate(actorId: string, input: Organizat
        start_date, end_date, max_occurrences, generated_count, missed_policy, paused, next_occurrence_date, created_at, updated_at, archived_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, NULL)`)
       .run(id, value.title, value.description, actorId, value.audienceType, value.frequency, value.interval, JSON.stringify(value.weekdays), value.monthDay,
-        buildRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, value.missedPolicy, value.startDate, now, now);
+        buildRecurrenceRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, value.missedPolicy, value.startDate, now, now);
     if (value.audienceType === "custom") {
       const selected = replaceRecipients(id, value.recipientIds);
       if (!selected.length) throw new Error("指定人员任务至少选择一名有效接收人。");
@@ -290,7 +256,7 @@ export function updateOrganizationTodoTemplate(id: string, input: OrganizationTo
       month_day = ?, rrule = ?, timezone = ?, start_date = ?, end_date = ?, max_occurrences = ?, generated_count = ?, missed_policy = ?,
       next_occurrence_date = ?, updated_at = ? WHERE id = ?`)
       .run(value.title, value.description, value.audienceType, value.frequency, value.interval, JSON.stringify(value.weekdays), value.monthDay,
-        buildRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, Number(existing.total), value.missedPolicy, value.startDate, now, id);
+        buildRecurrenceRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, Number(existing.total), value.missedPolicy, value.startDate, now, id);
     if (value.audienceType === "custom") {
       const selected = replaceRecipients(id, value.recipientIds);
       if (!selected.length) throw new Error("指定人员任务至少选择一名有效接收人。");
@@ -330,8 +296,6 @@ function assignmentWithOccurrence(id: string) {
     FROM todo_organization_assignments assignment JOIN todo_organization_occurrences occurrence ON occurrence.id = assignment.occurrence_id
     WHERE assignment.id = ?`).get(id) as JoinedAssignment | undefined;
 }
-
-function daysBetween(later: string, earlier: string) { return Math.max(0, Math.floor((dateAtUtc(later).getTime() - dateAtUtc(earlier).getTime()) / 86_400_000)); }
 
 export function readOrganizationTodoDashboard(userId: string, timezone = "Asia/Shanghai") {
   const today = todayInTimeZone(timezone);

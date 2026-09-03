@@ -73,6 +73,35 @@ test("uses portable SQLite and local attachment storage", async () => {
   assert.match(packageJson, /"better-sqlite3"/);
 });
 
+test("allows trusted LAN origins and reports sign-out failures without reloading", async () => {
+  const [auth, workspace, launcher] = await Promise.all([
+    source("app/lib/auth.ts"),
+    source("app/components/WorkspaceApp.tsx"),
+    source("scripts/start-workbench.ps1"),
+  ]);
+  assert.match(auth, /BETTER_AUTH_TRUSTED_ORIGINS/);
+  assert.match(auth, /trustedOrigins,/);
+  assert.match(launcher, /Get-WorkbenchTrustedOrigins/);
+  assert.match(launcher, /GetHostAddresses/);
+  assert.match(launcher, /if \(-not \$env:BETTER_AUTH_TRUSTED_ORIGINS\)/);
+  const signOut = workspace.slice(workspace.indexOf("async function signOut"), workspace.indexOf("async function loadWorkspace"));
+  assert.match(signOut, /if \(result\.error\) throw new Error/);
+  assert.match(signOut, /退出登录失败/);
+  assert.match(signOut, /window\.location\.reload\(\)/);
+  assert.ok(signOut.indexOf("result.error") < signOut.indexOf("window.location.reload()"), "退出成功后才能刷新页面");
+  assert.match(workspace, /disabled=\{signingOut\}/);
+});
+
+test("resets general template form state every time the dialog opens", async () => {
+  const templates = await source("app/sections/templates/TemplateLibrary.tsx");
+  assert.match(templates, /const \[dialogRevision, setDialogRevision\] = useState\(0\)/);
+  const createHandler = templates.slice(templates.indexOf("function openCreateTemplate"), templates.indexOf("function openEditTemplate"));
+  const editHandler = templates.slice(templates.indexOf("function openEditTemplate"), templates.indexOf("async function copyTemplate"));
+  assert.match(createHandler, /setEditingTemplate\(null\)[\s\S]*setDialogRevision\(\(value\) => value \+ 1\)/);
+  assert.match(editHandler, /setEditingTemplate\(template\)[\s\S]*setDialogRevision\(\(value\) => value \+ 1\)/);
+  assert.match(templates, /key=\{`\$\{editingTemplate\?\.id \?\? "new-template"\}-\$\{dialogRevision\}`\}/);
+});
+
 test("keeps organization Todo management inside admin-only Todo settings with readable recurrence controls", async () => {
   const [workspace, personalTodo, organizationAdmin, styles] = await Promise.all([
     source("app/components/WorkspaceApp.tsx"),
@@ -141,9 +170,17 @@ test("uses a single-screen article editor with in-place attachment operations", 
   assert.doesNotMatch(library, /method:\s*"(?:POST|PUT|DELETE)"/);
   assert.match(library, /id={`knowledge-asset-\${attachment\.id}`}/);
   assert.match(editor, /#knowledge-asset-\${attachment\.id}/);
-  assert.match(editor, /async function uploadAndInsert/);
+  assert.match(editor, /async function uploadAttachments/);
   assert.match(editor, /onEnsureDocument/);
-  assert.match(editor, /上传并插入/);
+  assert.match(editor, /type="file" multiple disabled=\{attachmentBusy\}/);
+  assert.match(editor, /Array\.from\(event\.currentTarget\.files \|\| \[\]\)/);
+  assert.match(editor, /已选择 \$\{pendingFiles\.length\} 个文件/);
+  assert.match(editor, /批量上传使用各文件名/);
+  assert.match(editor, /失败文件已保留，可直接重试/);
+  assert.doesNotMatch(editor, /上传并插入/);
+  const uploadFlow = editor.slice(editor.indexOf("async function uploadAttachments"), editor.indexOf("async function replaceAttachment"));
+  assert.doesNotMatch(uploadFlow, /insertFromLibrary|insertAtCursor|setAttachments/);
+  assert.match(uploadFlow, /if \(uploadedCount\) await loadLibrary\(target\.id\)/);
   assert.match(editor, /editorRef\.current\.insertAtCursor\(markdown\)/);
   assert.match(editor, /withoutAttachmentReferences/);
   assert.match(editor, /pendingDeleteIds/);
@@ -171,6 +208,7 @@ test("uses a single-screen article editor with in-place attachment operations", 
   assert.match(workspace, /className="document-tree-icon" style=\{\{ color: item\.treeIconColor/);
   assert.match(workspace, /WorkspaceIcon name=\{item\.treeIcon \|\| "docs"\}/);
   assert.match(styles, /document-tree-style-popover/);
+  assert.match(styles, /editor-upload-failures/);
   assert.match(styles, /structure-manager-backdrop\{z-index:220\}/);
   assert.match(styles, /document-editor-backdrop,.version-history-backdrop\{z-index:240\}/);
   const saveGuardRelease = editor.indexOf('CustomEvent("workspace-dirty", { detail: false })', editor.indexOf("async function submit"));
@@ -292,12 +330,15 @@ test("allows either text content or an attachment in the general template librar
   assert.match(itemRoute, /文本内容和附件至少需要保留一项/);
 });
 test("keeps metadata-rich resources isolated to their owning knowledge article", async () => {
-  const [workspace, library, editor, collectionRoute, itemRoute, assets, styles] = await Promise.all([
+  const [workspace, library, editor, collectionRoute, itemRoute, versionsRoute, accessHelper, versionHelper, assets, styles] = await Promise.all([
     source("app/components/WorkspaceApp.tsx"),
     source("app/components/KnowledgeAttachmentLibrary.tsx"),
     source("app/components/KnowledgeDocumentEditorDialog.tsx"),
     source("app/api/workspace-attachments/route.ts"),
     source("app/api/workspace-attachments/[id]/route.ts"),
+    source("app/api/workspace-attachments/[id]/versions/route.ts"),
+    source("app/lib/knowledge-attachment-access.ts"),
+    source("app/lib/workspace-attachment-versions.ts"),
     source("db/workspace-assets.ts"),
     source("app/globals.css"),
   ]);
@@ -317,6 +358,16 @@ test("keeps metadata-rich resources isolated to their owning knowledge article",
   assert.match(editor, /form\.set\("documentId", target\.id\)/);
   assert.match(itemRoute, /export async function PUT/);
   assert.match(itemRoute, /removeAttachment/);
+  assert.match(accessHelper, /attachment\.document_id === document\.id/);
+  assert.match(accessHelper, /matchesKnowledgeDocumentScope\(attachment\.scope, document, productId\)/);
+  assert.match(accessHelper, /resolveOwnedKnowledgeAttachmentAccess/);
+  assert.match(itemRoute, /createWorkspaceAttachmentVersion\(row, file/);
+  assert.match(versionsRoute, /createWorkspaceAttachmentVersion\(result\.row, file/);
+  assert.match(versionHelper, /SELECT COALESCE\(MAX\(version\), 0\)/);
+  assert.doesNotMatch(itemRoute, /SELECT COALESCE\(MAX\(version\), 0\)/);
+  assert.doesNotMatch(versionsRoute, /SELECT COALESCE\(MAX\(version\), 0\)/);
+  assert.doesNotMatch(collectionRoute, /function matchesUploadScope/);
+  assert.doesNotMatch(itemRoute, /function matchesDocument/);
   assert.match(assets, /ALTER TABLE workspace_attachments ADD COLUMN title/);
   assert.match(assets, /ALTER TABLE workspace_attachments ADD COLUMN document_id/);
   assert.match(assets, /title: row\.title\?\.trim\(\)/);

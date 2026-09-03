@@ -1,28 +1,21 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { CategoryManagerDialog } from "../../components/CategoryManagerDialog";
 import { KnowledgeMarkdown } from "../../components/KnowledgeMarkdown";
 import { HighlightedText, SectionFrame, resultExcerpt } from "../../components/SectionFrame";
+import { formatFileSize } from "../../lib/format";
 import { ActionIcon } from "../../lib/workspace-icons";
 import type { TemplateCategory, TemplateRecord } from "./types";
-
-const emptyCategoryDraft = { name: "", description: "", color: "#124f9f" };
-
-function formatFileSize(size: number | null) {
-  if (!size) return "";
-  if (size < 1024 * 1024) return `${Math.ceil(size / 1024)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
 
 export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQuery?: string; canEdit?: boolean }) {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogRevision, setDialogRevision] = useState(0);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateRecord | null>(null);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [categoryDraft, setCategoryDraft] = useState(emptyCategoryDraft);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copyId, setCopyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -32,7 +25,6 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const categoryDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -51,7 +43,6 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
   }, [reloadToken]);
 
   useEffect(() => { if (dialogOpen) dialogRef.current?.showModal(); else dialogRef.current?.close(); }, [dialogOpen]);
-  useEffect(() => { if (categoryDialogOpen) categoryDialogRef.current?.showModal(); else categoryDialogRef.current?.close(); }, [categoryDialogOpen]);
 
   const visibleTemplates = useMemo(() => {
     const categoryTemplates = activeCategory === "all" ? templates : templates.filter((template) => template.categoryId === activeCategory);
@@ -68,11 +59,13 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
 
   function openCreateTemplate() {
     setEditingTemplate(null);
+    setDialogRevision((value) => value + 1);
     setDialogOpen(true);
   }
 
   function openEditTemplate(template: TemplateRecord) {
     setEditingTemplate(template);
+    setDialogRevision((value) => value + 1);
     setDialogOpen(true);
   }
 
@@ -116,41 +109,6 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
       if (expandedId === template.id) setExpandedId(null);
       refresh(`“${template.title}”已删除。`);
     } catch (error) { setNotice(error instanceof Error ? error.message : "模板删除失败。 "); }
-  }
-
-  function editCategory(category: TemplateCategory) {
-    setEditingCategoryId(category.id);
-    setCategoryDraft({ name: category.name, description: category.description, color: category.color });
-  }
-
-  function resetCategoryDraft() {
-    setEditingCategoryId(null);
-    setCategoryDraft(emptyCategoryDraft);
-  }
-
-  async function submitCategory(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      const endpoint = editingCategoryId ? `/api/template-categories/${editingCategoryId}` : "/api/template-categories";
-      const response = await fetch(endpoint, { method: editingCategoryId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(categoryDraft) });
-      const data = await response.json() as { category?: TemplateCategory; updated?: boolean; error?: string };
-      if (!response.ok || (!data.category && !data.updated)) throw new Error(data.error || "分类保存失败");
-      resetCategoryDraft();
-      refresh("模板分类已保存。");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "分类保存失败。 "); }
-    finally { setSaving(false); }
-  }
-
-  async function deleteCategory(category: TemplateCategory) {
-    if (!window.confirm(`确认删除分类“${category.name}”吗？`)) return;
-    try {
-      const response = await fetch(`/api/template-categories/${category.id}`, { method: "DELETE" });
-      const data = await response.json() as { deleted?: boolean; error?: string };
-      if (!response.ok || !data.deleted) throw new Error(data.error || "分类删除失败");
-      if (activeCategory === category.id) setActiveCategory("all");
-      refresh(`分类“${category.name}”已删除。`);
-    } catch (error) { setNotice(error instanceof Error ? error.message : "分类删除失败。 "); }
   }
 
   async function reorderTemplate(targetId: string) {
@@ -197,7 +155,7 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
       {!loading && visibleTemplates.length === 0 && <div className="term-empty"><b>{searchQuery.trim() ? `没有找到“${searchQuery.trim()}”` : "当前分类还没有模板"}</b><span>{searchQuery.trim() ? "换一个关键词，或清空顶部搜索查看全部模板。" : "可以新建模板，或切换到其他分类。"}</span></div>}
 
       {canEdit && <dialog ref={dialogRef} className="template-dialog" onCancel={() => setDialogOpen(false)}>
-        <form key={editingTemplate?.id ?? "new-template"} className="dialog-shell" onSubmit={submitTemplate}>
+        <form key={`${editingTemplate?.id ?? "new-template"}-${dialogRevision}`} className="dialog-shell" onSubmit={submitTemplate}>
           <div className="dialog-head"><div><span>TEMPLATE RECORD</span><h3>{editingTemplate ? "编辑模板" : "新建模板"}</h3><p>文本内容和附件至少提供一项，分类等信息会保存到本项目数据库。</p></div><button type="button" aria-label="关闭" onClick={() => setDialogOpen(false)}>×</button></div>
           <div className="form-grid">
             <label>模板名称<input name="title" required maxLength={80} defaultValue={editingTemplate?.title ?? ""} placeholder="例如：上线切换方案" /></label>
@@ -211,21 +169,7 @@ export function TemplateLibrary({ searchQuery = "", canEdit = false }: { searchQ
         </form>
       </dialog>}
 
-      {canEdit && <dialog ref={categoryDialogRef} className="template-dialog category-dialog" onCancel={() => setCategoryDialogOpen(false)}>
-        <div className="dialog-shell">
-          <div className="dialog-head"><div><span>CATEGORY ADMIN</span><h3>模板分类管理</h3><p>分类名称、说明和颜色均可维护。</p></div><button type="button" aria-label="关闭" onClick={() => setCategoryDialogOpen(false)}>×</button></div>
-          <form className="category-form" onSubmit={submitCategory}>
-            <label>分类名称<input required value={categoryDraft.name} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, name: event.target.value }))} /></label>
-            <label>分类说明<input value={categoryDraft.description} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, description: event.target.value }))} /></label>
-            <label>颜色<input type="color" value={categoryDraft.color} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, color: event.target.value }))} /></label>
-            <button className="primary-button" type="submit" disabled={saving}>{editingCategoryId ? "保存修改" : "新增分类"}</button>
-            {editingCategoryId && <button type="button" onClick={resetCategoryDraft}>取消编辑</button>}
-          </form>
-          <div className="category-list">
-            {categories.map((category) => <div key={category.id}><i style={{ background: category.color }} /><p><b>{category.name}</b><small>{category.description || "暂无说明"} · {category.templateCount} 个模板</small></p><button type="button" onClick={() => editCategory(category)}>编辑</button><button className="danger-action" type="button" disabled={category.templateCount > 0} title={category.templateCount > 0 ? "请先移动或删除分类下的模板" : "删除分类"} onClick={() => deleteCategory(category)}>删除</button></div>)}
-          </div>
-        </div>
-      </dialog>}
+      {canEdit && <CategoryManagerDialog open={categoryDialogOpen} title="模板分类管理" description="分类名称、说明和颜色均可维护。" itemLabel="模板" endpoint="/api/template-categories" categories={categories.map((category) => ({ ...category, count: category.templateCount }))} onClose={() => setCategoryDialogOpen(false)} onChanged={refresh} onDeleted={(categoryId) => { if (activeCategory === categoryId) setActiveCategory("all"); }} onNotice={setNotice} />}
     </SectionFrame>
   );
 }

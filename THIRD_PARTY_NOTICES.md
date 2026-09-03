@@ -2,7 +2,7 @@
 
 > 此文件由 `scripts/generate-third-party-notices.mjs` 根据当前生产依赖自动生成，请勿手工编辑。
 
-本发布使用 483 个已解析的生产依赖包版本，其中 14 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
+本发布使用 482 个已解析的生产依赖包版本，其中 13 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
 
 | 组件 | 类型 | 许可证 | 上游源码 |
 | --- | --- | --- | --- |
@@ -320,7 +320,6 @@
 | `linebreak@1.1.0` | 传递运行依赖 | `MIT` | <https://github.com/devongovett/linebreaker> |
 | `lodash-es@4.18.1` | 传递运行依赖 | `MIT` | <lodash/lodash> |
 | `longest-streak@3.1.0` | 传递运行依赖 | `MIT` | <wooorm/longest-streak> |
-| `lucide-react@1.31.0` | 直接运行依赖 | `ISC` | <https://github.com/lucide-icons/lucide> |
 | `lucide@1.31.0` | 直接运行依赖 | `ISC` | <https://github.com/lucide-icons/lucide> |
 | `magic-string@0.30.21` | 传递运行依赖 | `MIT` | <https://github.com/Rich-Harris/magic-string> |
 | `markdown-table@3.0.4` | 传递运行依赖 | `MIT` | <wooorm/markdown-table> |

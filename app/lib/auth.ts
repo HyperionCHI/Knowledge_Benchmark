@@ -5,6 +5,11 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../../db/schema";
 import { sqlite } from "../../db/local";
 
+const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const userColumns = sqlite.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>;
 if (userColumns.length) {
   if (!userColumns.some((column) => column.name === "banned")) sqlite.prepare("ALTER TABLE user ADD COLUMN banned INTEGER NOT NULL DEFAULT 0").run();
@@ -17,6 +22,7 @@ if (userColumns.length) {
 export const auth = betterAuth({
   appName: "内部知识工作台",
   baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins,
   secret: process.env.BETTER_AUTH_SECRET || "knowledge-workbench-local-development-secret-change-before-production-2026",
   database: drizzleAdapter(drizzle(sqlite, { schema }), {
     provider: "sqlite",

@@ -7,6 +7,7 @@ const attachmentPath = resolve("data/qa-auth-attachments");
 process.env.WORKBENCH_DB_PATH = databasePath;
 process.env.WORKBENCH_ATTACHMENT_DIR = attachmentPath;
 process.env.BETTER_AUTH_URL = "http://localhost:3999";
+process.env.BETTER_AUTH_TRUSTED_ORIGINS = "http://192.0.2.10:3999";
 process.env.BETTER_AUTH_SECRET = "qa-only-secret-for-workbench-auth-chain-2026";
 
 await Promise.all([databasePath, `${databasePath}-wal`, `${databasePath}-shm`].map((path) => rm(path, { force: true })));
@@ -92,6 +93,14 @@ try {
   const forbiddenExport = await knowledgeExportRoute.GET(new Request("http://localhost:3999/api/knowledge-export?kind=general", { headers: { cookie: viewerCookie } }));
   assert.equal(forbiddenExport.status, 403);
   assert.deepEqual(await forbiddenExport.json(), { error: "仅管理员可批量导出知识库。" });
+
+  const signedOut = await auth.handler(new Request("http://192.0.2.10:3999/api/auth/sign-out", {
+    method: "POST",
+    headers: { cookie: viewerCookie, origin: "http://192.0.2.10:3999" },
+  }));
+  assert.equal(signedOut.status, 200, "受信任的局域网来源应能退出登录");
+  const sessionAfterSignOut = await auth.handler(new Request("http://192.0.2.10:3999/api/auth/get-session", { headers: { cookie: viewerCookie } }));
+  assert.equal(await sessionAfterSignOut.json(), null, "退出后原会话应失效");
 } finally {
   sqlite.close();
   await Promise.all([databasePath, `${databasePath}-wal`, `${databasePath}-shm`].map((path) => rm(path, { force: true })));

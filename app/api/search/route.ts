@@ -7,6 +7,7 @@ import { ensureWorkspaceRecordSchema, resolveProductNames } from "../../../db/wo
 import { sqlite } from "../../../db/local";
 import { GENERAL_KNOWLEDGE_SPACE_ID, OTHER_KNOWLEDGE_SPACE_ID, getKnowledgeDocument } from "../../../db/knowledge";
 import { knowledgeDocumentPermission } from "../../lib/knowledge-permissions";
+import { resolveOwnedKnowledgeAttachmentAccess } from "../../lib/knowledge-attachment-access";
 
 type SearchResultType = "文章" | "附件" | "术语";
 type SearchResult = { type: SearchResultType; title: string; desc: string; view: string; entityId: string; brand?: string; product?: string; url?: string };
@@ -43,8 +44,9 @@ export async function GET(request: Request) {
       AND (name LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')
     ORDER BY updated_at DESC LIMIT 12`).all(pattern, pattern, pattern, pattern) as WorkspaceAttachmentRow[];
   for (const row of articleAttachments) {
-    const document = getKnowledgeDocument(row.document_id);
-    if (!document || document.deleted_at || !knowledgeDocumentPermission(access.state, access.profile, document).canView) continue;
+    const attachmentAccess = resolveOwnedKnowledgeAttachmentAccess(access.state, access.profile, row);
+    if (!attachmentAccess?.canView) continue;
+    const { document } = attachmentAccess;
     let section: string, view: string, brand: string | undefined, product: string | undefined;
     if (row.scope === "doc" && document.space_id === GENERAL_KNOWLEDGE_SPACE_ID) { section = searchSections.docs; view = "docs"; }
     else if (row.scope === "other-doc" && document.space_id === OTHER_KNOWLEDGE_SPACE_ID) { section = searchSections.otherDocs; view = "other-docs"; }

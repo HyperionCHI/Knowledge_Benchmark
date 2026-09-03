@@ -1,10 +1,11 @@
 import { ensureWorkspaceAssetSchema, getWorkspaceAssetBindings, toWorkspaceAttachment, type WorkspaceAttachmentRow } from "../../../../db/workspace-assets";
 import { getWorkspaceAccess } from "../../../lib/authorize";
 import { ensureWorkspaceRecordSchema } from "../../../../db/workspace-records";
-import { GENERAL_KNOWLEDGE_SPACE_ID, OTHER_KNOWLEDGE_SPACE_ID, ensureKnowledgeSchema, getKnowledgeDocument } from "../../../../db/knowledge";
-import { knowledgeDocumentPermission } from "../../../lib/knowledge-permissions";
-import { safeAttachmentName, validateWorkspaceFile } from "../../../lib/file-policy";
+import { ensureKnowledgeSchema } from "../../../../db/knowledge";
+import { validateWorkspaceFile } from "../../../lib/file-policy";
 import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
+import { isKnowledgeAttachmentScope, resolveOwnedKnowledgeAttachmentAccess } from "../../../lib/knowledge-attachment-access";
+import { createWorkspaceAttachmentVersion } from "../../../lib/workspace-attachment-versions";
 
 const clean = (value: FormDataEntryValue | null) => String(value ?? "").trim();
 
@@ -13,20 +14,12 @@ async function find(id: string) {
   return getWorkspaceAssetBindings().DB.prepare("SELECT * FROM workspace_attachments WHERE id = ?").bind(id).first<WorkspaceAttachmentRow>();
 }
 
-function matchesDocument(row: WorkspaceAttachmentRow, document: NonNullable<ReturnType<typeof getKnowledgeDocument>>, productId: string | undefined) {
-  if (row.scope === "doc") return document.space_id === GENERAL_KNOWLEDGE_SPACE_ID;
-  if (row.scope === "other-doc") return document.space_id === OTHER_KNOWLEDGE_SPACE_ID;
-  return row.scope === "sop" && document.space_kind === "sop" && Boolean(productId) && document.product_id === productId;
-}
-
 async function mutationAccess(request: Request, row: WorkspaceAttachmentRow, documentId: string) {
   const access = await getWorkspaceAccess(request); if (access.denied || !access.profile || !access.session?.user) return { denied: access.denied, access: null };
   if (!access.state) return { denied: Response.json({ error: "工作台状态不可用。" }, { status: 500 }), access: null };
   ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state);
-  const document = documentId ? getKnowledgeDocument(documentId) : null;
-  const productId = access.state.productIds[`${row.brand}/${row.product}`];
-  const articleScoped = row.scope === "doc" || row.scope === "other-doc" || row.scope === "sop";
-  const documentAllowed = Boolean(document && !document.deleted_at && row.document_id === documentId && matchesDocument(row, document, productId) && knowledgeDocumentPermission(access.state, access.profile, document).canEdit);
+  const articleScoped = isKnowledgeAttachmentScope(row.scope);
+  const documentAllowed = resolveOwnedKnowledgeAttachmentAccess(access.state, access.profile, row, documentId)?.canEdit ?? false;
   if ((articleScoped && !documentAllowed) || (!articleScoped && access.profile.role !== "admin")) return { denied: Response.json({ error: "没有该资源的编辑权限。" }, { status: 403 }), access: null };
   return { denied: null, access };
 }
@@ -35,12 +28,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const access = await getWorkspaceAccess(request); if (access.denied || !access.profile) return access.denied;
   if (access.state) ensureWorkspaceRecordSchema(access.state);
   const row = await find((await params).id); if (!row) return Response.json({ error: "附件不存在。" }, { status: 404 });
-  if (row.scope === "doc" || row.scope === "other-doc" || row.scope === "sop") {
+  if (isKnowledgeAttachmentScope(row.scope)) {
     if (!access.state) return Response.json({ error: "工作台状态不可用。" }, { status: 500 });
     ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state);
-    const document = row.document_id ? getKnowledgeDocument(row.document_id) : null;
-    const productId = access.state.productIds[`${row.brand}/${row.product}`];
-    if (!document || document.deleted_at || !matchesDocument(row, document, productId) || !knowledgeDocumentPermission(access.state, access.profile, document).canView) return Response.json({ error: "没有该附件的访问权限。" }, { status: 403 });
+    if (!resolveOwnedKnowledgeAttachmentAccess(access.state, access.profile, row)?.canView) return Response.json({ error: "没有该附件的访问权限。" }, { status: 403 });
   } else if (row.scope === "catalog-icon") {
     const state = access.state;
     if (!state) return Response.json({ error: "工作台状态不可用。" }, { status: 500 });
@@ -61,7 +52,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  let newStorageKey: string | null = null;
   try {
     const row = await find((await params).id); if (!row) return Response.json({ error: "资料不存在。" }, { status: 404 });
     const form = await request.formData(); const documentId = clean(form.get("documentId"));
@@ -73,25 +63,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const keepsCurrentAttachment = Boolean(row.name.trim() && Number(row.size) > 0 && !removeAttachment);
     if (!content && !file && !keepsCurrentAttachment) return Response.json({ error: "文本内容和上传附件至少需要保留一项。" }, { status: 400 });
 
-    const { DB, ATTACHMENTS } = getWorkspaceAssetBindings(); const now = new Date().toISOString();
-    let attachmentName = keepsCurrentAttachment ? row.name : ""; let attachmentType = keepsCurrentAttachment ? row.content_type : ""; let attachmentSize = keepsCurrentAttachment ? Number(row.size) : 0; let storageKey = keepsCurrentAttachment ? row.storage_key : `workspace/${row.scope}/${row.id}/text-only`;
-    const statements = [];
     if (file) {
-      const current = await DB.prepare("SELECT COALESCE(MAX(version), 0) AS value FROM workspace_attachment_versions WHERE attachment_id = ?").bind(row.id).first<{ value: number }>();
-      const version = Number(current?.value || 0) + 1;
-      newStorageKey = `workspace/${row.scope}/${row.id}/versions/v${version}-${safeAttachmentName(file.name)}`;
-      await ATTACHMENTS.put(newStorageKey, file.stream(), { httpMetadata: { contentType: file.type || "application/octet-stream" }, customMetadata: { originalName: file.name, version: String(version) } });
-      attachmentName = file.name; attachmentType = file.type || "application/octet-stream"; attachmentSize = file.size; storageKey = newStorageKey;
-      statements.push(DB.prepare(`INSERT INTO workspace_attachment_versions (id, attachment_id, version, name, content_type, size, storage_key, created_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), row.id, version, file.name, attachmentType, file.size, storageKey, authorization.access.session.user.name, now));
+      const result = await createWorkspaceAttachmentVersion(row, file, authorization.access.session.user.name, { title, summary, content });
+      return Response.json({ attachment: result.row ? toWorkspaceAttachment(result.row) : null });
     }
-    statements.push(DB.prepare(`UPDATE workspace_attachments SET title = ?, summary = ?, content = ?, name = ?, content_type = ?, size = ?, storage_key = ?, updated_by = ?, updated_at = ? WHERE id = ?`)
-      .bind(title, summary, content, attachmentName, attachmentType, attachmentSize, storageKey, authorization.access.session.user.name, now, row.id));
-    await DB.batch(statements);
+
+    const { DB } = getWorkspaceAssetBindings(); const now = new Date().toISOString();
+    const attachmentName = keepsCurrentAttachment ? row.name : ""; const attachmentType = keepsCurrentAttachment ? row.content_type : ""; const attachmentSize = keepsCurrentAttachment ? Number(row.size) : 0; const storageKey = keepsCurrentAttachment ? row.storage_key : `workspace/${row.scope}/${row.id}/text-only`;
+    await DB.prepare(`UPDATE workspace_attachments SET title = ?, summary = ?, content = ?, name = ?, content_type = ?, size = ?, storage_key = ?, updated_by = ?, updated_at = ? WHERE id = ?`)
+      .bind(title, summary, content, attachmentName, attachmentType, attachmentSize, storageKey, authorization.access.session.user.name, now, row.id).run();
     const updated = await DB.prepare(`SELECT a.*, COALESCE((SELECT MAX(version) FROM workspace_attachment_versions v WHERE v.attachment_id = a.id), 1) AS version FROM workspace_attachments a WHERE a.id = ?`).bind(row.id).first<WorkspaceAttachmentRow & { version: number }>();
     return Response.json({ attachment: updated ? toWorkspaceAttachment(updated) : null });
   } catch (error) {
-    if (newStorageKey) { try { await getWorkspaceAssetBindings().ATTACHMENTS.delete(newStorageKey); } catch { /* best effort */ } }
     return Response.json({ error: error instanceof Error ? error.message : "资料更新失败。" }, { status: 500 });
   }
 }

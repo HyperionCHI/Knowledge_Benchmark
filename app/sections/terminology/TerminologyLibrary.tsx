@@ -1,13 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { CategoryManagerDialog } from "../../components/CategoryManagerDialog";
 import { SectionFrame } from "../../components/SectionFrame";
 import { ActionIcon } from "../../lib/workspace-icons";
 import type { CategoryRecord, TermRecord } from "./types";
 
 const PAGE_SIZE = 24;
-const defaultCategoryDraft = { name: "", description: "", color: "#124f9f" };
-
 export function TerminologyLibrary({ canEdit = false }: { canEdit?: boolean }) {
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [terms, setTerms] = useState<TermRecord[]>([]);
@@ -21,11 +20,8 @@ export function TerminologyLibrary({ canEdit = false }: { canEdit?: boolean }) {
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [editingTerm, setEditingTerm] = useState<TermRecord | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [categoryDraft, setCategoryDraft] = useState(defaultCategoryDraft);
   const [saving, setSaving] = useState(false);
   const termDialogRef = useRef<HTMLDialogElement>(null);
-  const categoryDialogRef = useRef<HTMLDialogElement>(null);
 
   const categoryMap = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
 
@@ -62,7 +58,6 @@ export function TerminologyLibrary({ canEdit = false }: { canEdit?: boolean }) {
   }, [activeCategory, limit, query, reloadToken]);
 
   useEffect(() => { if (termDialogOpen) termDialogRef.current?.showModal(); else termDialogRef.current?.close(); }, [termDialogOpen]);
-  useEffect(() => { if (categoryDialogOpen) categoryDialogRef.current?.showModal(); else categoryDialogRef.current?.close(); }, [categoryDialogOpen]);
 
   function refresh(message?: string) {
     setReloadToken((value) => value + 1);
@@ -109,41 +104,6 @@ export function TerminologyLibrary({ canEdit = false }: { canEdit?: boolean }) {
       if (!response.ok || !data.deleted) throw new Error(data.error || "删除失败");
       refresh(`“${term.chinese}”已删除。`);
     } catch (error) { setNotice(error instanceof Error ? error.message : "术语删除失败。 "); }
-  }
-
-  function editCategory(category: CategoryRecord) {
-    setEditingCategoryId(category.id);
-    setCategoryDraft({ name: category.name, description: category.description, color: category.color });
-  }
-
-  function resetCategoryDraft() {
-    setEditingCategoryId(null);
-    setCategoryDraft(defaultCategoryDraft);
-  }
-
-  async function submitCategory(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      const endpoint = editingCategoryId ? `/api/term-categories/${editingCategoryId}` : "/api/term-categories";
-      const response = await fetch(endpoint, { method: editingCategoryId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(categoryDraft) });
-      const data = await response.json() as { category?: CategoryRecord; updated?: boolean; error?: string };
-      if (!response.ok || (!data.category && !data.updated)) throw new Error(data.error || "分类保存失败");
-      resetCategoryDraft();
-      refresh("分类已保存。");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "分类保存失败。 "); }
-    finally { setSaving(false); }
-  }
-
-  async function deleteCategory(category: CategoryRecord) {
-    if (!window.confirm(`确认删除分类“${category.name}”吗？`)) return;
-    try {
-      const response = await fetch(`/api/term-categories/${category.id}`, { method: "DELETE" });
-      const data = await response.json() as { deleted?: boolean; error?: string };
-      if (!response.ok || !data.deleted) throw new Error(data.error || "分类删除失败");
-      if (activeCategory === category.id) setActiveCategory("all");
-      refresh(`分类“${category.name}”已删除。`);
-    } catch (error) { setNotice(error instanceof Error ? error.message : "分类删除失败。 "); }
   }
 
   return (
@@ -196,21 +156,7 @@ export function TerminologyLibrary({ canEdit = false }: { canEdit?: boolean }) {
         </form>
       </dialog>}
 
-      {canEdit && <dialog ref={categoryDialogRef} className="template-dialog category-dialog" onCancel={() => setCategoryDialogOpen(false)}>
-        <div className="dialog-shell">
-          <div className="dialog-head"><div><span>CATEGORY ADMIN</span><h3>分类管理</h3><p>新增、编辑或删除空分类。</p></div><button type="button" aria-label="关闭" onClick={() => setCategoryDialogOpen(false)}>×</button></div>
-          <form className="category-form" onSubmit={submitCategory}>
-            <label>分类名称<input required value={categoryDraft.name} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, name: event.target.value }))} /></label>
-            <label>分类说明<input value={categoryDraft.description} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, description: event.target.value }))} /></label>
-            <label>颜色<input type="color" value={categoryDraft.color} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, color: event.target.value }))} /></label>
-            <button className="primary-button" type="submit" disabled={saving}>{editingCategoryId ? "保存修改" : "新增分类"}</button>
-            {editingCategoryId && <button type="button" onClick={resetCategoryDraft}>取消编辑</button>}
-          </form>
-          <div className="category-list">
-            {categories.map((category) => <div key={category.id}><i style={{ background: category.color }} /><p><b>{category.name}</b><small>{category.description || "暂无说明"} · {category.termCount} 个术语</small></p><button type="button" onClick={() => editCategory(category)}>编辑</button><button className="danger-action" type="button" disabled={category.termCount > 0} title={category.termCount > 0 ? "请先移动或删除分类下的术语" : "删除分类"} onClick={() => deleteCategory(category)}>删除</button></div>)}
-          </div>
-        </div>
-      </dialog>}
+      {canEdit && <CategoryManagerDialog open={categoryDialogOpen} title="分类管理" description="新增、编辑或删除空分类。" itemLabel="术语" endpoint="/api/term-categories" categories={categories.map((category) => ({ ...category, count: category.termCount }))} onClose={() => setCategoryDialogOpen(false)} onChanged={refresh} onDeleted={(categoryId) => { if (activeCategory === categoryId) setActiveCategory("all"); }} onNotice={setNotice} />}
     </SectionFrame>
   );
 }

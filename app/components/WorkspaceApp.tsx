@@ -5,6 +5,7 @@ import { FormEvent, type DragEvent as ReactDragEvent, type KeyboardEvent as Reac
 import { TerminologyLibrary } from "../sections/terminology/TerminologyLibrary";
 import { TemplateLibrary } from "../sections/templates/TemplateLibrary";
 import { authClient } from "../lib/auth-client";
+import { formatFileSize } from "../lib/format";
 import { I18nProvider, useI18n } from "../lib/i18n";
 import { ActionIcon, WorkspaceIcon, iconChoices } from "../lib/workspace-icons";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
@@ -162,6 +163,7 @@ function WorkspaceCore({ sessionUser }: { sessionUser: { id: string; name: strin
   const [profileOpen, setProfileOpen] = useState(false);
   const [todoSettingsOpen, setTodoSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [docsStructureOpen, setDocsStructureOpen] = useState(false);
   const [otherDocsStructureOpen, setOtherDocsStructureOpen] = useState(false);
   const [sopStructureOpen, setSopStructureOpen] = useState(false);
@@ -179,6 +181,19 @@ function WorkspaceCore({ sessionUser }: { sessionUser: { id: string; name: strin
     setNotice(message);
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(""), 3200);
+  }
+
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const result = await authClient.signOut();
+      if (result.error) throw new Error(result.error.message || "退出登录失败");
+      window.location.reload();
+    } catch (error) {
+      toast(error instanceof Error ? `退出登录失败：${error.message}` : "退出登录失败，请稍后重试");
+      setSigningOut(false);
+    }
   }
 
   async function loadWorkspace() {
@@ -300,7 +315,7 @@ function WorkspaceCore({ sessionUser }: { sessionUser: { id: string; name: strin
 
   return (
     <main className="workspace-app">
-      <Header profile={profile} showSearch={view !== "home"} onHome={() => navigate("home")} onSearch={() => setSearchOpen(true)} onAdmin={() => setPermissionsOpen(true)} onProfile={() => { setProfileOpen(true); setAccountOpen(false); }} onTodo={() => { setTodoSettingsOpen(true); setAccountOpen(false); }} onSignOut={async () => { await authClient.signOut(); window.location.reload(); }} accountOpen={accountOpen} setAccountOpen={setAccountOpen} />
+      <Header profile={profile} showSearch={view !== "home"} onHome={() => navigate("home")} onSearch={() => setSearchOpen(true)} onAdmin={() => setPermissionsOpen(true)} onProfile={() => { setProfileOpen(true); setAccountOpen(false); }} onTodo={() => { setTodoSettingsOpen(true); setAccountOpen(false); }} onSignOut={signOut} signingOut={signingOut} accountOpen={accountOpen} setAccountOpen={setAccountOpen} />
       {loading && <div className="loading-line" />}
       {!online && <div className="connection-banner" role="status">网络连接已断开。未保存内容仍保留在当前设备，恢复连接后请重试保存。</div>}
       {loadError ? <div className="page-shell state-page"><ActionIcon name="refresh" size={26} /><h1>工作台加载失败</h1><p>{loadError}</p><button className="primary" onClick={loadWorkspace}>重新加载</button></div> : noPermission ? <div className="page-shell state-page"><ActionIcon name="admin" size={26} /><h1>无权限访问</h1><p>当前账号没有访问该品牌或产品线的权限。</p><button className="primary" onClick={() => { setNoPermission(false); navigate("home"); }}>返回工作台</button></div> : view === "home" ? <Home onNavigate={navigate} onSearch={() => setSearchOpen(true)} /> : (
@@ -348,7 +363,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   return <main className="auth-page"><section className="auth-brand"><div className="auth-brand-inner"><span className="auth-logo">知</span><p className="eyebrow">KNOWLEDGE WORKSPACE</p><h1>让团队的知识，<br /><em>真正流动起来。</em></h1><p>资料、SOP、项目跟踪、术语与模板，集中在一个清晰、安全、可维护的工作空间。</p><div className="auth-feature-grid"><div><span><WorkspaceIcon name="docs" /></span><b>统一知识入口</b><small>六大模块集中检索</small></div><div><span><ActionIcon name="admin" /></span><b>精细权限控制</b><small>品牌 × 产品线授权</small></div><div><span><ActionIcon name="check" /></span><b>本地自主部署</b><small>数据由部署者掌控</small></div></div><footer>请妥善保管账号与访问地址</footer></div></section><section className="auth-panel"><form onSubmit={submit}><header><span className="mobile-auth-logo">知</span><p>{needsSetup ? "FIRST RUN SETUP" : "WELCOME BACK"}</p><h2>{needsSetup ? "初始化管理员账号" : "登录工作空间"}</h2><small>{needsSetup ? "创建第一个管理员，完成后即可进入工作台。" : "使用管理员分配的账号密码登录。"}</small></header>{error && <div className="auth-error">! {error}</div>}{needsSetup && <label>显示名称<input name="name" required placeholder="例如：知识管理员" autoComplete="name" /></label>}<label>账号<input name="username" required minLength={3} maxLength={30} placeholder="请输入账号" autoComplete="username" onKeyDown={submitOnEnter} /></label><label>密码<input name="password" required minLength={8} type="password" placeholder="请输入密码" autoComplete={needsSetup ? "new-password" : "current-password"} onKeyDown={submitOnEnter} /></label><div className="auth-options"><label><input name="rememberMe" type="checkbox" /> 记住登录状态</label>{!needsSetup && <small>忘记密码请联系管理员</small>}</div><button className="auth-submit" type="submit" disabled={busy || checking}>{checking ? "正在检查…" : busy ? "正在处理…" : needsSetup ? "创建并进入工作台" : "登录"}<ActionIcon name="next" /></button><p className="auth-security"><ActionIcon name="admin" size={14} />密码经 Better Auth 的安全哈希处理，不以明文保存</p></form></section></main>;
 }
 
-function Header({ profile, showSearch, onHome, onSearch, onAdmin, onProfile, onTodo, onSignOut, accountOpen, setAccountOpen }: { profile: UserRecord; showSearch: boolean; onHome: () => void; onSearch: () => void; onAdmin: () => void; onProfile: () => void; onTodo: () => void; onSignOut: () => void; accountOpen: boolean; setAccountOpen: (value: boolean) => void }) {
+function Header({ profile, showSearch, onHome, onSearch, onAdmin, onProfile, onTodo, onSignOut, signingOut, accountOpen, setAccountOpen }: { profile: UserRecord; showSearch: boolean; onHome: () => void; onSearch: () => void; onAdmin: () => void; onProfile: () => void; onTodo: () => void; onSignOut: () => void; signingOut: boolean; accountOpen: boolean; setAccountOpen: (value: boolean) => void }) {
   const { locale, setLocale, t } = useI18n();
   return <header className="topbar">
     <button className="brand" onClick={onHome}><span className="brand-mark">工</span><strong>{t("workspace")}</strong></button>
@@ -356,7 +371,7 @@ function Header({ profile, showSearch, onHome, onSearch, onAdmin, onProfile, onT
       {showSearch && <button className="compact-search" onClick={onSearch}><ActionIcon name="search" /><span>{t("search")}</span></button>}
       <button className="language-toggle" onClick={() => setLocale(locale === "zh" ? "en" : "zh")}><ActionIcon name="language" /><span>{t("systemLanguage")}</span></button>
       <div className="account-wrap"><button className="user-pill" onClick={() => setAccountOpen(!accountOpen)}><span>{initials(profile.name)}</span><b className="user-name">{profile.name}</b><ActionIcon name="expand" size={14} /></button>
-        {accountOpen && <div className="account-menu"><div><b>{profile.name}</b><small>{profile.email}</small></div>{profile.role === "admin" && <button onClick={onAdmin}><ActionIcon name="admin" />{t("admin")}</button>}<button onClick={onProfile}><ActionIcon name="settings" />{t("settings")}</button><button onClick={onTodo}><ActionIcon name="check" />TODO 设置</button><button onClick={onSignOut}><ActionIcon name="signOut" />{t("signOut")}</button></div>}
+        {accountOpen && <div className="account-menu"><div><b>{profile.name}</b><small>{profile.email}</small></div>{profile.role === "admin" && <button onClick={onAdmin}><ActionIcon name="admin" />{t("admin")}</button>}<button onClick={onProfile}><ActionIcon name="settings" />{t("settings")}</button><button onClick={onTodo}><ActionIcon name="check" />TODO 设置</button><button onClick={onSignOut} disabled={signingOut}><ActionIcon name="signOut" />{signingOut ? "正在退出…" : t("signOut")}</button></div>}
       </div>
     </nav>
   </header>;
@@ -584,8 +599,6 @@ function DocsPage({ kind = "general", data, selected, onSelect, canEdit, canMana
     {historyDocument && <VersionHistoryDialog type="doc" entityId={historyDocument.id} currentText={historyDocument.body} onClose={() => setHistoryDocument(null)} onRestored={() => window.location.reload()} />}
   </section>;
 }
-
-function formatBytes(size: number | null | undefined) { if (!size) return ""; return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`; }
 
 function SopPage({ data, brand, product, selected, canEdit, canManageCollaborators, structureOpen, onCloseStructure, setData, onSelect, toast }: { data: WorkspaceState; brand: string; product: string; selected: string; canEdit: boolean; canManageCollaborators: boolean; structureOpen: boolean; onCloseStructure: () => void; setData: (next: WorkspaceState) => void; onSelect: (documentId?: string) => void; toast: (message: string) => void }) {
   const productId = data.productIds[`${brand}/${product}`] || "";
@@ -824,7 +837,7 @@ function AuditPanel({ toast }: { toast: (message: string) => void }) {
   async function restore(item: (typeof items)[number]) { const response = await fetch("/api/admin/recycle-bin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: item.type, id: item.id }) }); const body = await response.json(); if (!response.ok) return toast(body.error || "恢复失败"); await load(); toast("内容已恢复，重新进入对应板块后可见。"); }
   async function cleanupAttachments() { if (!orphanFiles.length || !window.confirm(`确认清理 ${orphanFiles.length} 个超过 24 小时且没有活动内容引用的附件及全部历史版本？已删除文章若恢复，将不再包含这些附件。此操作不可恢复。`)) return; const response = await fetch("/api/admin/attachments/cleanup", { method: "POST" }); const body = await response.json(); if (!response.ok) return toast(body.error || "附件清理失败"); await load(); toast(`已清理 ${body.deleted || 0} 个孤儿附件`); }
   const actionLabels: Record<string, string> = { create: "创建", rename: "重命名", update: "更新", delete: "删除", restore: "恢复", cleanup: "清理", ban: "停用", unban: "启用", pause: "暂停", resume: "恢复", archive: "归档", complete: "完成", reopen: "重新打开", "reset-password": "重置密码", login: "登录" }; const entityLabels: Record<string, string> = { doc: "资料", "doc-category": "资料分类", sop: "SOP", "tracker-link": "跟踪链接", attachment: "附件", user: "账号", template: "模板", catalog: "品牌与产品", "organization-todo": "组织周期 Todo" };
-  return <div className="audit-panel">{loading ? <div className="empty-state"><b>正在读取后台记录…</b></div> : <><section><h3>回收与附件 <span>{items.length + orphanFiles.length}</span></h3>{items.length ? <div className="recycle-list">{items.map((item) => <article key={`${item.type}-${item.id}`}><div><b>{item.title}</b><small>{{ doc: "通用资料", sop: "SOP 文档", "tracker-link": "跟踪链接" }[item.type]} · {formatTime(item.deletedAt)}</small></div><button onClick={() => restore(item)}><ActionIcon name="refresh" />恢复</button></article>)}</div> : <p className="muted">回收站为空</p>}<div className="attachment-cleanup"><div><b>孤儿附件扫描</b><small>{orphanFiles.length ? `${orphanFiles.length} 个文件 · ${formatBytes(orphanFiles.reduce((sum, file) => sum + file.size, 0))}` : "未发现可清理文件"}</small></div><div>{orphanFiles.length > 0 && <a href="/api/admin/attachments/download"><ActionIcon name="download" />批量下载</a>}<button disabled={!orphanFiles.length} onClick={cleanupAttachments}><ActionIcon name="delete" />安全清理</button></div></div>{orphanFiles.length > 0 && <div className="orphan-attachment-list">{orphanFiles.map((file) => <article key={file.id}><div><b>{file.title || file.name || "未命名附件"}</b><small>{file.reason}{file.brand ? ` · ${file.brand}${file.product ? ` / ${file.product}` : ""}` : ""}</small></div><span>{formatBytes(file.size)}</span></article>)}</div>}</section><section><h3>最近操作 <span>{logs.length}</span></h3><div className="audit-list readable">{logs.map((log) => <article key={log.id}><time>{formatTime(log.createdAt)}</time><div><b>{log.actorName || "系统"} · {actionLabels[log.action] || log.action}{entityLabels[log.entityType] || log.entityType}</b><small>{log.detail || "—"}</small></div></article>)}</div></section></>}</div>;
+  return <div className="audit-panel">{loading ? <div className="empty-state"><b>正在读取后台记录…</b></div> : <><section><h3>回收与附件 <span>{items.length + orphanFiles.length}</span></h3>{items.length ? <div className="recycle-list">{items.map((item) => <article key={`${item.type}-${item.id}`}><div><b>{item.title}</b><small>{{ doc: "通用资料", sop: "SOP 文档", "tracker-link": "跟踪链接" }[item.type]} · {formatTime(item.deletedAt)}</small></div><button onClick={() => restore(item)}><ActionIcon name="refresh" />恢复</button></article>)}</div> : <p className="muted">回收站为空</p>}<div className="attachment-cleanup"><div><b>孤儿附件扫描</b><small>{orphanFiles.length ? `${orphanFiles.length} 个文件 · ${formatFileSize(orphanFiles.reduce((sum, file) => sum + file.size, 0))}` : "未发现可清理文件"}</small></div><div>{orphanFiles.length > 0 && <a href="/api/admin/attachments/download"><ActionIcon name="download" />批量下载</a>}<button disabled={!orphanFiles.length} onClick={cleanupAttachments}><ActionIcon name="delete" />安全清理</button></div></div>{orphanFiles.length > 0 && <div className="orphan-attachment-list">{orphanFiles.map((file) => <article key={file.id}><div><b>{file.title || file.name || "未命名附件"}</b><small>{file.reason}{file.brand ? ` · ${file.brand}${file.product ? ` / ${file.product}` : ""}` : ""}</small></div><span>{formatFileSize(file.size)}</span></article>)}</div>}</section><section><h3>最近操作 <span>{logs.length}</span></h3><div className="audit-list readable">{logs.map((log) => <article key={log.id}><time>{formatTime(log.createdAt)}</time><div><b>{log.actorName || "系统"} · {actionLabels[log.action] || log.action}{entityLabels[log.entityType] || log.entityType}</b><small>{log.detail || "—"}</small></div></article>)}</div></section></>}</div>;
 }
 
 function IconPicker({ value, onChange, compact = false }: { value: string; onChange: (value: string) => void; compact?: boolean }) {

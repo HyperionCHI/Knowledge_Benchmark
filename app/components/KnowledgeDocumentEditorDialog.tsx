@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/no-autofocus -- the nested category dialog intentionally focuses its only text input. */
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { formatFileSize } from "../lib/format";
 import { ActionIcon, WorkspaceIcon } from "../lib/workspace-icons";
 import {
   DEFAULT_DOCUMENT_TREE_ICON,
@@ -19,6 +20,7 @@ export type KnowledgeAttachment = { id: string; title?: string; summary?: string
 export type KnowledgeCollaborator = { userId: string; name: string; email: string; permission: "view" | "edit" };
 type AttachmentReference = { id: string; title: string; category: string; spaceKind: string; status: string; updatedBy: string; updatedAt: string };
 type AttachmentVersion = { id: string; version: number; name: string; content_type: string; size: number; created_by: string; created_at: string };
+type AttachmentUploadFailure = { name: string; reason: string };
 export type EditableKnowledgeDocument = {
   id: string; title: string; group: string; body: string; items: string[]; attachments: KnowledgeAttachment[]; collaborators?: KnowledgeCollaborator[]; version?: number; status?: "draft" | "published" | "archived"; treeIcon?: string; treeIconColor?: string;
 };
@@ -31,10 +33,6 @@ function withoutAttachmentReferences(markdown: string, attachment: KnowledgeAtta
   const withoutAssetLink = markdown.replace(assetLink, "");
   const withoutEmbed = attachment.name.trim() ? withoutAssetLink.replace(new RegExp(`!\\[\\[${escapeRegExp(attachment.name)}(?:\\|[^]]+)?\\]\\]`, "gi"), "") : withoutAssetLink;
   return withoutEmbed.replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function formatBytes(size: number) {
-  return size < 1024 * 1024 ? `${Math.max(1, Math.ceil(size / 1024))} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function KnowledgeDocumentEditorDialog({
@@ -71,9 +69,11 @@ export function KnowledgeDocumentEditorDialog({
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryPage, setLibraryPage] = useState(0);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState("");
   const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [uploadFailures, setUploadFailures] = useState<AttachmentUploadFailure[]>([]);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [resourceFormOpen, setResourceFormOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<KnowledgeAttachment | null>(null);
@@ -207,19 +207,33 @@ export function KnowledgeDocumentEditorDialog({
     return target;
   }
 
-  async function uploadAndInsert() {
-    if (!pendingFile) return toast("请先选择要上传的附件");
+  async function uploadAttachments() {
+    if (!pendingFiles.length) return toast("请先选择要上传的附件");
+    const files = [...pendingFiles], failures: Array<AttachmentUploadFailure & { file: File }> = [];
+    let uploadedCount = 0;
     setAttachmentBusy(true);
-    const target = await ensureAttachmentDocument();
-    if (!target) { setAttachmentBusy(false); return; }
-    const form = new FormData(); form.set("scope", scope); form.set("brand", brand); form.set("product", product); form.set("documentId", target.id); form.set("title", uploadTitle.trim() || pendingFile.name); form.set("file", pendingFile);
+    setUploadFailures([]); setUploadProgress({ current: 0, total: files.length });
     try {
-      const response = await fetch("/api/workspace-attachments", { method: "POST", body: form });
-      const body = await response.json(); if (!response.ok || !body.attachment) throw new Error(body.error || "附件上传失败");
-      const attachment = body.attachment as KnowledgeAttachment;
-      await loadLibrary(target.id); setPendingFile(null); setUploadTitle(""); insertFromLibrary(attachment);
+      const target = await ensureAttachmentDocument(); if (!target) return;
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]; setUploadProgress({ current: index + 1, total: files.length });
+        const form = new FormData(); form.set("scope", scope); form.set("brand", brand); form.set("product", product); form.set("documentId", target.id); form.set("title", files.length === 1 ? uploadTitle.trim() || file.name : file.name); form.set("file", file);
+        try {
+          const response = await fetch("/api/workspace-attachments", { method: "POST", body: form });
+          const body = await response.json(); if (!response.ok || !body.attachment) throw new Error(body.error || "附件上传失败");
+          uploadedCount += 1;
+        } catch (error) {
+          failures.push({ file, name: file.name, reason: error instanceof Error ? error.message : "附件上传失败" });
+        }
+      }
+      if (uploadedCount) await loadLibrary(target.id);
+      setPendingFiles(failures.map((failure) => failure.file));
+      setUploadFailures(failures.map(({ name: failedName, reason }) => ({ name: failedName, reason })));
+      if (files.length !== 1 || !failures.length) setUploadTitle("");
+      if (failures.length) toast(`成功上传 ${uploadedCount} 个，失败 ${failures.length} 个；失败文件已保留，可直接重试`);
+      else toast(`已上传 ${uploadedCount} 个附件`);
     } catch (error) { toast(error instanceof Error ? error.message : "附件上传失败"); }
-    finally { setAttachmentBusy(false); }
+    finally { setAttachmentBusy(false); setUploadProgress(null); }
   }
 
   async function replaceAttachment(attachment: KnowledgeAttachment, file: File | undefined) {
@@ -294,8 +308,11 @@ export function KnowledgeDocumentEditorDialog({
     toast(`已导入 ${file.name}，请在保存前检查右侧统一预览`);
   }
 
+  const pendingFileNames = pendingFiles.map((file) => file.name).join("\n");
+  const pendingFileLabel = pendingFiles.length > 1 ? `已选择 ${pendingFiles.length} 个文件` : pendingFiles[0]?.name || "选择文件";
+
   return <div className="modal-backdrop document-editor-backdrop"><form className="modal doc-editor-modal cherry-doc-modal" onSubmit={submit}>
-    <header><div><span>CHERRY DOCUMENT EDITOR</span><h2>{title}</h2><p>正文与预览是主工作区；需要时展开附件，文件会插入当前光标位置。</p></div><button className="icon-button" title="关闭" type="button" onClick={close}><ActionIcon name="close" /></button></header>
+    <header><div><span>CHERRY DOCUMENT EDITOR</span><h2>{title}</h2><p>正文与预览是主工作区；附件上传后可按需插入当前光标位置。</p></div><button className="icon-button" title="关闭" type="button" onClick={close}><ActionIcon name="close" /></button></header>
     <div className="doc-editor-fields">
       <label>文档标题<input required value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label>所属分类<div className="doc-category-field"><select required value={group} onChange={(event) => setGroup(event.target.value)}>{categories.map((category) => <option value={category} key={category}>{category}</option>)}</select>{canManageCategories && <button type="button" onClick={() => setCategoryManagerOpen(true)}><ActionIcon name="folder" />分类</button>}</div></label>
@@ -309,11 +326,12 @@ export function KnowledgeDocumentEditorDialog({
         {!attachmentsOpen ? <button className="doc-editor-side-toggle" type="button" aria-expanded="false" aria-label={`展开附件，共 ${library.length} 个`} title="展开附件" onClick={() => setAttachmentsOpen(true)}><WorkspaceIcon name="docs" /><span>附件</span>{library.length > 0 && <small>{library.length}</small>}</button> : <>
           <header className="doc-editor-side-head"><div><WorkspaceIcon name="docs" /><b>附件</b><small>{library.length} 个</small></div><div className="doc-editor-side-head-actions"><button type="button" title="新增附件或文本资料" onClick={openCreateResource}><ActionIcon name="add" /></button><button type="button" aria-expanded="true" aria-label="收起附件" title="收起附件" onClick={() => setAttachmentsOpen(false)}><ActionIcon name="close" /></button></div></header>
           <section className="editor-attachment-panel">
-          <div className="editor-attachment-upload"><div><input value={uploadTitle} placeholder="附件显示名称（可选）" onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} onChange={(event) => setUploadTitle(event.target.value)} /><label title={pendingFile?.name || "选择附件"}><ActionIcon name="folder" /><span>{pendingFile?.name || "选择文件"}</span><input key={pendingFile?.name || "empty-upload"} type="file" onChange={(event) => setPendingFile(event.target.files?.[0] || null)} /></label></div><button className="primary" type="button" disabled={attachmentBusy || !pendingFile} onClick={() => void uploadAndInsert()}><ActionIcon name="add" />{attachmentBusy ? "处理中" : "上传并插入"}</button></div>
+          <div className="editor-attachment-upload"><div><input value={uploadTitle} disabled={attachmentBusy || pendingFiles.length > 1} placeholder={pendingFiles.length > 1 ? "批量上传使用各文件名" : "附件显示名称（可选）"} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} onChange={(event) => setUploadTitle(event.target.value)} /><label title={pendingFileNames || "选择附件，可多选"} aria-disabled={attachmentBusy}><ActionIcon name="folder" /><span>{pendingFileLabel}</span><input type="file" multiple disabled={attachmentBusy} onChange={(event) => { const files = Array.from(event.currentTarget.files || []); setPendingFiles(files); setUploadFailures([]); if (files.length !== 1) setUploadTitle(""); event.currentTarget.value = ""; }} /></label></div><button className="primary" type="button" disabled={attachmentBusy || !pendingFiles.length} onClick={() => void uploadAttachments()}><ActionIcon name="upload" />{attachmentBusy && uploadProgress ? `上传 ${uploadProgress.current}/${uploadProgress.total}` : pendingFiles.length > 1 ? `上传（${pendingFiles.length}）` : "上传"}</button></div>
+          {uploadFailures.length > 0 && <div className="editor-upload-failures" title={uploadFailures.map((failure) => `${failure.name}：${failure.reason}`).join("\n")}><span>{uploadFailures.length} 个文件上传失败，已保留可重试</span><button type="button" disabled={attachmentBusy} onClick={() => { setPendingFiles([]); setUploadFailures([]); setUploadTitle(""); }}>清空</button></div>}
           <label className="editor-attachment-search"><ActionIcon name="search" /><input value={libraryQuery} placeholder="搜索当前文章附件或文本资料" onChange={(event) => { setLibraryQuery(event.target.value); setLibraryPage(0); }} /></label>
           <div className="editor-attachment-list">{pagedLibrary.length ? pagedLibrary.map((attachment) => {
             const linked = attachments.some((item) => item.id === attachment.id), hasContent = Boolean(attachment.content?.trim()), hasAttachment = attachment.hasAttachment !== false && Boolean(attachment.name && attachment.size > 0);
-            return <article key={attachment.id}><span><WorkspaceIcon name={hasContent ? "templates" : "docs"} /></span><div><b title={attachment.title || attachment.name}>{attachment.title || attachment.name}</b><small>{hasAttachment ? `${attachment.name} · ${formatBytes(attachment.size)} · v${attachment.version || 1}` : "纯文本资料"}{linked ? " · 正文已引用" : ""}</small></div><nav><button type="button" title="插入当前光标位置" onClick={() => insertFromLibrary(attachment)}><ActionIcon name="copy" /></button>{hasContent && <button type="button" title="预览文本资料" onClick={() => setPreviewFor(attachment)}><ActionIcon name="show" /></button>}{hasAttachment && <a href={attachment.url} target="_blank" rel="noreferrer" title="下载或预览附件"><ActionIcon name="download" /></a>}<details className="editor-attachment-more"><summary title="更多附件操作"><ActionIcon name="menu" /></summary><div><button type="button" onClick={() => openEditResource(attachment)}><ActionIcon name="edit" />编辑资料</button>{hasAttachment && <button type="button" onClick={() => void openVersions(attachment)}><ActionIcon name="refresh" />历史版本</button>}<button type="button" onClick={() => void openReferences(attachment)}><ActionIcon name="users" />引用情况</button>{hasAttachment && <label><ActionIcon name="upload" />上传新版本<input type="file" onChange={(event) => { void replaceAttachment(attachment, event.target.files?.[0]); event.currentTarget.value = ""; }} /></label>}{linked && <button type="button" onClick={() => unlinkAttachment(attachment)}><ActionIcon name="close" />解除正文引用</button>}<button type="button" className="danger-action" onClick={() => unlinkAttachment(attachment, true)}><ActionIcon name="delete" />保存后永久删除</button></div></details></nav></article>;
+            return <article key={attachment.id}><span><WorkspaceIcon name={hasContent ? "templates" : "docs"} /></span><div><b title={attachment.title || attachment.name}>{attachment.title || attachment.name}</b><small>{hasAttachment ? `${attachment.name} · ${formatFileSize(attachment.size)} · v${attachment.version || 1}` : "纯文本资料"}{linked ? " · 正文已引用" : ""}</small></div><nav><button type="button" title="插入当前光标位置" onClick={() => insertFromLibrary(attachment)}><ActionIcon name="copy" /></button>{hasContent && <button type="button" title="预览文本资料" onClick={() => setPreviewFor(attachment)}><ActionIcon name="show" /></button>}{hasAttachment && <a href={attachment.url} target="_blank" rel="noreferrer" title="下载或预览附件"><ActionIcon name="download" /></a>}<details className="editor-attachment-more"><summary title="更多附件操作"><ActionIcon name="menu" /></summary><div><button type="button" onClick={() => openEditResource(attachment)}><ActionIcon name="edit" />编辑资料</button>{hasAttachment && <button type="button" onClick={() => void openVersions(attachment)}><ActionIcon name="refresh" />历史版本</button>}<button type="button" onClick={() => void openReferences(attachment)}><ActionIcon name="users" />引用情况</button>{hasAttachment && <label><ActionIcon name="upload" />上传新版本<input type="file" onChange={(event) => { void replaceAttachment(attachment, event.target.files?.[0]); event.currentTarget.value = ""; }} /></label>}{linked && <button type="button" onClick={() => unlinkAttachment(attachment)}><ActionIcon name="close" />解除正文引用</button>}<button type="button" className="danger-action" onClick={() => unlinkAttachment(attachment, true)}><ActionIcon name="delete" />保存后永久删除</button></div></details></nav></article>;
           }) : <div className="editor-side-empty">当前文章还没有附件或文本资料</div>}</div>
           <footer className="editor-side-pager"><span>第 {safeLibraryPage + 1} / {libraryPageCount} 页 · {attachments.length} 项正文引用</span><div><button type="button" disabled={safeLibraryPage === 0} onClick={() => setLibraryPage((page) => Math.max(0, page - 1))}>‹</button><button type="button" disabled={safeLibraryPage + 1 >= libraryPageCount} onClick={() => setLibraryPage((page) => Math.min(libraryPageCount - 1, page + 1))}>›</button></div></footer>
           {pendingDeleteIds.length > 0 && <div className="editor-delete-notice"><span>{pendingDeleteIds.length} 个附件将在保存后永久删除</span><button type="button" onClick={() => setPendingDeleteIds([])}>改为保留文件</button></div>}
@@ -336,7 +354,7 @@ export function KnowledgeDocumentEditorDialog({
   </form></div>}
   {previewFor && <div className="modal-backdrop resource-template-backdrop"><section className="modal editor-resource-preview-modal"><header><div><span>RESOURCE PREVIEW</span><h2>{previewFor.title || previewFor.name}</h2><p>{previewFor.summary || "当前文章的可复用文本资料"}</p></div><button className="icon-button" type="button" title="关闭" onClick={() => setPreviewFor(null)}><ActionIcon name="close" /></button></header><div className="editor-resource-preview ionic-doc-theme"><KnowledgeMarkdown markdown={previewFor.content || ""} /></div><footer className="dialog-actions"><button type="button" onClick={() => void copyContent(previewFor)}><ActionIcon name={copyId === previewFor.id ? "check" : "copy"} />{copyId === previewFor.id ? "已复制" : "复制文本"}</button><button className="primary" type="button" onClick={() => setPreviewFor(null)}>关闭</button></footer></section></div>}
   {referencesFor && <div className="modal-backdrop"><section className="modal attachment-reference-modal"><header><div><span>RESOURCE REFERENCES</span><h2>引用情况</h2><p>“{referencesFor.title || referencesFor.name}”当前被哪些文章引用。</p></div><button className="icon-button" type="button" title="关闭" onClick={() => setReferencesFor(null)}><ActionIcon name="close" /></button></header><section className="attachment-reference-panel">{referencesLoading ? <div className="doc-attachment-empty">正在读取…</div> : references.length ? <div>{references.map((reference) => <article key={reference.id}><span><WorkspaceIcon name="docs" /></span><div><b>{reference.title}</b><small>{reference.category} · {reference.spaceKind === "sop" ? "SOP" : "知识资料"} · {reference.updatedBy}</small></div></article>)}</div> : <div className="doc-attachment-empty">当前没有文章引用该资源</div>}</section></section></div>}
-  {versionFor && <div className="modal-backdrop"><section className="modal attachment-version-modal"><header><div><span>ATTACHMENT HISTORY</span><h2>{versionFor.title || versionFor.name}</h2><p>当前附件 v{versionFor.version || 1}；历史版本可单独下载。</p></div><button className="icon-button" type="button" title="关闭" onClick={() => setVersionFor(null)}><ActionIcon name="close" /></button></header><div className="attachment-version-list">{versions.length ? versions.map((version) => <article key={version.id}><b>v{version.version}</b><div><strong>{version.name}</strong><small>{version.created_by} · {new Date(version.created_at).toLocaleString("zh-CN")} · {formatBytes(version.size)}</small></div><a href={`/api/workspace-attachments/${versionFor.id}?version=${version.version}`} download><ActionIcon name="download" />下载</a></article>) : <div className="doc-attachment-empty">暂无历史版本</div>}</div></section></div>}
+  {versionFor && <div className="modal-backdrop"><section className="modal attachment-version-modal"><header><div><span>ATTACHMENT HISTORY</span><h2>{versionFor.title || versionFor.name}</h2><p>当前附件 v{versionFor.version || 1}；历史版本可单独下载。</p></div><button className="icon-button" type="button" title="关闭" onClick={() => setVersionFor(null)}><ActionIcon name="close" /></button></header><div className="attachment-version-list">{versions.length ? versions.map((version) => <article key={version.id}><b>v{version.version}</b><div><strong>{version.name}</strong><small>{version.created_by} · {new Date(version.created_at).toLocaleString("zh-CN")} · {formatFileSize(version.size)}</small></div><a href={`/api/workspace-attachments/${versionFor.id}?version=${version.version}`} download><ActionIcon name="download" />下载</a></article>) : <div className="doc-attachment-empty">暂无历史版本</div>}</div></section></div>}
   {categoryManagerOpen && <div className="modal-backdrop category-manager-backdrop"><section className="modal category-manager-modal"><header><div><span>DOCUMENT CATEGORIES</span><h2>分类管理</h2><p>分类是当前知识空间的文档目录；有内容的分类不能删除。</p></div><button className="icon-button" title="关闭" type="button" onClick={() => { setCategoryManagerOpen(false); setEditingCategory(null); setCategoryDraft(""); }}><ActionIcon name="close" /></button></header><form className="doc-category-form" onSubmit={saveCategory}><label>{editingCategory ? "新的分类名称" : "新增分类"}<input autoFocus value={categoryDraft} maxLength={40} onChange={(event) => setCategoryDraft(event.target.value)} /></label><div>{editingCategory && <button type="button" onClick={() => { setEditingCategory(null); setCategoryDraft(""); }}>取消编辑</button>}<button className="primary" disabled={categoryBusy || !categoryDraft.trim()}><ActionIcon name={editingCategory ? "save" : "add"} />{editingCategory ? "保存修改" : "新增分类"}</button></div></form><div className="doc-category-list">{categories.map((category) => <article key={category}><div><b>{category}</b></div><button type="button" disabled={categoryBusy} onClick={() => { setEditingCategory(category); setCategoryDraft(category); }}><ActionIcon name="edit" />重命名</button><button type="button" className="danger-action" disabled={categoryBusy || categories.length <= 1} onClick={() => void deleteCategory(category)}><ActionIcon name="delete" />删除</button></article>)}</div></section></div>}
   </div>;
 }

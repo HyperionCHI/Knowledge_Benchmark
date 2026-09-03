@@ -2,28 +2,21 @@ import { getWorkspaceAssetBindings, ensureWorkspaceAssetSchema, toWorkspaceAttac
 import { getWorkspaceAccess } from "../../lib/authorize";
 import { ensureWorkspaceRecordSchema } from "../../../db/workspace-records";
 import { safeAttachmentName, validateWorkspaceFile } from "../../lib/file-policy";
-import { knowledgeDocumentPermission } from "../../lib/knowledge-permissions";
-import { GENERAL_KNOWLEDGE_SPACE_ID, OTHER_KNOWLEDGE_SPACE_ID, ensureKnowledgeSchema, getKnowledgeDocument } from "../../../db/knowledge";
+import { ensureKnowledgeSchema } from "../../../db/knowledge";
+import { isKnowledgeAttachmentScope, resolveKnowledgeAttachmentAccess } from "../../lib/knowledge-attachment-access";
 
 const clean = (value: FormDataEntryValue | null) => String(value ?? "").trim();
-
-function matchesUploadScope(scope: string, document: NonNullable<ReturnType<typeof getKnowledgeDocument>>, productId: string | undefined) {
-  if (scope === "doc") return document.space_id === GENERAL_KNOWLEDGE_SPACE_ID;
-  if (scope === "other-doc") return document.space_id === OTHER_KNOWLEDGE_SPACE_ID;
-  return scope === "sop" && document.space_kind === "sop" && Boolean(productId) && document.product_id === productId;
-}
 
 export async function GET(request: Request) {
   const access = await getWorkspaceAccess(request);
   if (access.denied || !access.profile || !access.state) return access.denied;
   const url = new URL(request.url), scope = url.searchParams.get("scope") || "doc", brand = url.searchParams.get("brand") || "", product = url.searchParams.get("product") || "", documentId = url.searchParams.get("documentId") || "";
-  if (scope !== "doc" && scope !== "other-doc" && scope !== "sop") return Response.json({ error: "附件库范围无效。" }, { status: 400 });
+  if (!isKnowledgeAttachmentScope(scope)) return Response.json({ error: "附件库范围无效。" }, { status: 400 });
   if (!documentId) return Response.json({ error: "请选择要查看附件的文章。" }, { status: 400 });
   ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state); await ensureWorkspaceAssetSchema();
-  const document = getKnowledgeDocument(documentId);
-  const productId = scope === "sop" ? access.state.productIds[`${brand}/${product}`] : undefined;
-  if (!document || document.deleted_at || !matchesUploadScope(scope, document, productId)) return Response.json({ error: "文章不存在或不属于当前附件库。" }, { status: 404 });
-  if (!knowledgeDocumentPermission(access.state, access.profile, document).canView) return Response.json({ error: "没有该文章附件库的访问权限。" }, { status: 403 });
+  const documentAccess = resolveKnowledgeAttachmentAccess(access.state, access.profile, { scope, brand, product }, documentId);
+  if (!documentAccess) return Response.json({ error: "文章不存在或不属于当前附件库。" }, { status: 404 });
+  if (!documentAccess.canView) return Response.json({ error: "没有该文章附件库的访问权限。" }, { status: 403 });
 
   const result = await getWorkspaceAssetBindings().DB.prepare(`SELECT a.*, COUNT(DISTINCT da.document_id) AS reference_count, COALESCE(MAX(av.version), 1) AS version
     FROM workspace_attachments a
@@ -45,12 +38,11 @@ export async function POST(request: Request) {
     if (access.denied || !access.profile || !access.session?.user) return access.denied;
     if (scope === "catalog-icon") {
       if (access.profile.role !== "admin") return Response.json({ error: "只有管理员可以上传品牌或产品图标。" }, { status: 403 });
-    } else if (scope === "doc" || scope === "other-doc" || scope === "sop") {
+    } else if (isKnowledgeAttachmentScope(scope)) {
       if (!access.state || !documentId) return Response.json({ error: "请选择附件所属文章。" }, { status: 400 });
       ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state);
-      const document = getKnowledgeDocument(documentId);
-      const productId = scope === "sop" ? access.state.productIds[`${brand}/${product}`] : undefined;
-      if (!document || document.deleted_at || !matchesUploadScope(scope, document, productId) || !knowledgeDocumentPermission(access.state, access.profile, document).canEdit) return Response.json({ error: "没有该文章的附件上传权限。" }, { status: 403 });
+      const documentAccess = resolveKnowledgeAttachmentAccess(access.state, access.profile, { scope, brand, product }, documentId);
+      if (!documentAccess?.canEdit) return Response.json({ error: "没有该文章的附件上传权限。" }, { status: 403 });
     } else return Response.json({ error: "附件库范围无效。" }, { status: 400 });
 
     if (!title) return Response.json({ error: "请输入模板名称。" }, { status: 400 });

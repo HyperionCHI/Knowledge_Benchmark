@@ -1,26 +1,28 @@
-import { type Options, type Weekday } from "rrule";
-import rrulePackage from "rrule/dist/es5/rrule.js";
 import { sqlite } from "./local";
+import {
+  addDays,
+  addMonthsClamped,
+  buildRecurrenceRule,
+  DATE_PATTERN,
+  daysBetween,
+  nextRecurrenceDate,
+  normalizeRecurrenceInput,
+  recurrenceDatesBetween,
+  todayInTimeZone,
+  type CommonRecurrenceInput,
+  type TodoFrequency,
+  type TodoMissedPolicy,
+} from "./todo-recurrence";
 
-const { RRule, rrulestr } = rrulePackage;
+export { todayInTimeZone } from "./todo-recurrence";
+export type { TodoFrequency, TodoMissedPolicy } from "./todo-recurrence";
 
-export type TodoFrequency = "daily" | "weekly" | "monthly";
 export type TodoRecurrenceMode = "calendar" | "after_completion";
-export type TodoMissedPolicy = "latest_only" | "all" | "skip";
 export type TodoItemStatus = "pending" | "completed" | "skipped";
 
-export type TodoTemplateInput = {
+export type TodoTemplateInput = CommonRecurrenceInput & {
   title?: string;
-  frequency?: TodoFrequency;
-  interval?: number;
-  weekdays?: number[];
-  monthDay?: number | null;
   recurrenceMode?: TodoRecurrenceMode;
-  timezone?: string;
-  startDate?: string;
-  endDate?: string | null;
-  maxOccurrences?: number | null;
-  missedPolicy?: TodoMissedPolicy;
   waitForCompletion?: boolean;
 };
 
@@ -59,12 +61,6 @@ type TodoItemRow = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
-};
-
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const weekdayMap: Record<number, Weekday> = {
-  1: RRule.MO, 2: RRule.TU, 3: RRule.WE, 4: RRule.TH,
-  5: RRule.FR, 6: RRule.SA, 7: RRule.SU,
 };
 
 export function ensureTodoSchema() {
@@ -124,83 +120,28 @@ export function ensureTodoSchema() {
   initialize();
 }
 
-export function todayInTimeZone(timezone = "Asia/Shanghai", now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(now);
-  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${value.year}-${value.month}-${value.day}`;
-}
-
-function dateAtUtc(value: string) {
-  return new Date(`${value}T12:00:00.000Z`);
-}
-
-function dateKey(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-function addDays(value: string, amount: number) {
-  const date = dateAtUtc(value);
-  date.setUTCDate(date.getUTCDate() + amount);
-  return dateKey(date);
-}
-
-function addMonthsClamped(value: string, amount: number) {
-  const source = dateAtUtc(value);
-  const year = source.getUTCFullYear();
-  const month = source.getUTCMonth() + amount;
-  const day = source.getUTCDate();
-  const lastDay = new Date(Date.UTC(year, month + 1, 0, 12)).getUTCDate();
-  return dateKey(new Date(Date.UTC(year, month, Math.min(day, lastDay), 12)));
-}
-
-function dayDifference(later: string, earlier: string) {
-  return Math.max(0, Math.floor((dateAtUtc(later).getTime() - dateAtUtc(earlier).getTime()) / 86_400_000));
-}
-
-function validTimezone(value: string) {
-  try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; }
-  catch { return false; }
-}
-
 function normalizeTemplateInput(input: TodoTemplateInput, fallback?: TodoTemplateRow) {
-  const timezone = input.timezone?.trim() || fallback?.timezone || "Asia/Shanghai";
-  if (!validTimezone(timezone)) throw new Error("时区无效。");
   const title = input.title?.trim() || fallback?.title || "";
   if (!title || title.length > 160) throw new Error("任务名称应为 1 至 160 个字符。");
-  const frequency = input.frequency || fallback?.frequency || "daily";
-  if (!["daily", "weekly", "monthly"].includes(frequency)) throw new Error("重复周期无效。");
-  const interval = Math.floor(Number(input.interval ?? fallback?.interval ?? 1));
-  if (interval < 1 || interval > 99) throw new Error("重复间隔应为 1 至 99。");
-  const startDate = input.startDate || fallback?.start_date || todayInTimeZone(timezone);
-  if (!datePattern.test(startDate)) throw new Error("开始日期无效。");
-  const endDate = input.endDate === undefined ? fallback?.end_date || null : input.endDate;
-  if (endDate && (!datePattern.test(endDate) || endDate < startDate)) throw new Error("结束日期不能早于开始日期。");
-  const fallbackWeekdays = fallback ? JSON.parse(fallback.weekdays_json) as number[] : [dateAtUtc(startDate).getUTCDay() || 7];
-  const weekdays = [...new Set((input.weekdays || fallbackWeekdays).map(Number))].filter((day) => day >= 1 && day <= 7).sort();
-  if (frequency === "weekly" && !weekdays.length) throw new Error("每周任务至少选择一个星期。");
-  const requestedMonthDay = input.monthDay === undefined ? fallback?.month_day : input.monthDay;
-  const monthDay = frequency === "monthly" ? Number(requestedMonthDay ?? Number(startDate.slice(8, 10))) : null;
-  if (monthDay !== null && monthDay !== -1 && (monthDay < 1 || monthDay > 31)) throw new Error("每月日期应为 1 至 31，或选择每月最后一天。");
+  const recurrence = normalizeRecurrenceInput(input, fallback ? {
+    frequency: fallback.frequency,
+    interval: fallback.interval,
+    weekdays: JSON.parse(fallback.weekdays_json) as number[],
+    monthDay: fallback.month_day,
+    timezone: fallback.timezone,
+    startDate: fallback.start_date,
+    endDate: fallback.end_date,
+    maxOccurrences: fallback.max_occurrences,
+    missedPolicy: fallback.missed_policy,
+  } : undefined, {
+    defaultFrequency: "daily",
+    maxOccurrencesError: "完成次数应为 1 至 10000。",
+    missedPolicyError: "错过任务处理方式无效。",
+  });
   const recurrenceMode = input.recurrenceMode || fallback?.recurrence_mode || "calendar";
   if (!["calendar", "after_completion"].includes(recurrenceMode)) throw new Error("下一期计算方式无效。");
-  const missedPolicy = input.missedPolicy || fallback?.missed_policy || "latest_only";
-  if (!["latest_only", "all", "skip"].includes(missedPolicy)) throw new Error("错过任务处理方式无效。");
-  const rawMax = input.maxOccurrences === undefined ? fallback?.max_occurrences : input.maxOccurrences;
-  const maxOccurrences = rawMax == null ? null : Math.floor(Number(rawMax));
-  if (maxOccurrences !== null && (maxOccurrences < 1 || maxOccurrences > 10000)) throw new Error("完成次数应为 1 至 10000。");
   const waitForCompletion = input.waitForCompletion ?? (fallback ? Boolean(fallback.wait_for_completion) : recurrenceMode === "after_completion");
-  return { title, frequency, interval, weekdays, monthDay, recurrenceMode, timezone, startDate, endDate, maxOccurrences, missedPolicy, waitForCompletion };
-}
-
-function buildRule(input: ReturnType<typeof normalizeTemplateInput>) {
-  const frequency = input.frequency === "daily" ? RRule.DAILY : input.frequency === "weekly" ? RRule.WEEKLY : RRule.MONTHLY;
-  const options: Partial<Options> = { freq: frequency, interval: input.interval, dtstart: dateAtUtc(input.startDate) };
-  if (input.endDate) options.until = dateAtUtc(input.endDate);
-  if (input.frequency === "weekly") options.byweekday = input.weekdays.map((day) => weekdayMap[day]);
-  if (input.frequency === "monthly") options.bymonthday = input.monthDay ?? Number(input.startDate.slice(8, 10));
-  return new RRule(options).toString();
+  return { title, ...recurrence, recurrenceMode, waitForCompletion };
 }
 
 function insertOccurrence(template: TodoTemplateRow, scheduledFor: string) {
@@ -212,30 +153,24 @@ function insertOccurrence(template: TodoTemplateRow, scheduledFor: string) {
   return Number(result.changes || 0);
 }
 
-function nextRuleDate(ruleText: string, afterDate: string) {
-  const next = rrulestr(ruleText).after(dateAtUtc(afterDate), false);
-  return next ? dateKey(next) : null;
-}
-
 function materializeCalendarTemplate(template: TodoTemplateRow, today: string) {
   if (template.paused || template.deleted_at) return;
   if (template.wait_for_completion) {
     const pending = sqlite.prepare("SELECT 1 FROM todo_items WHERE recurrence_template_id = ? AND status = 'pending' LIMIT 1").get(template.id);
     if (pending) return;
   }
-  const rule = rrulestr(template.rrule);
   let cursor = template.next_occurrence_date || template.start_date;
   let generated = 0;
   const remaining = template.max_occurrences == null ? Number.MAX_SAFE_INTEGER : Math.max(0, template.max_occurrences - template.generated_count);
   if (!remaining) return;
   if (cursor <= today) {
-    let dueDates = rule.between(dateAtUtc(cursor), dateAtUtc(today), true).map(dateKey).filter((date) => date >= cursor);
-    let nextCursor = nextRuleDate(template.rrule, today);
+    let dueDates = recurrenceDatesBetween(template.rrule, cursor, today).filter((date) => date >= cursor);
+    let nextCursor = nextRecurrenceDate(template.rrule, today);
     if (template.missed_policy === "latest_only") dueDates = dueDates.length ? [dueDates.at(-1)!] : [];
     if (template.missed_policy === "skip") dueDates = dueDates.filter((date) => date === today);
     if (template.missed_policy === "all" && dueDates.length > 500) {
       dueDates = dueDates.slice(0, 500);
-      nextCursor = nextRuleDate(template.rrule, dueDates.at(-1)!);
+      nextCursor = nextRecurrenceDate(template.rrule, dueDates.at(-1)!);
     }
     for (const date of dueDates.slice(0, remaining)) generated += insertOccurrence(template, date);
     cursor = nextCursor || "";
@@ -244,7 +179,7 @@ function materializeCalendarTemplate(template: TodoTemplateRow, today: string) {
     WHERE recurrence_template_id = ? AND status = 'pending' AND scheduled_for > ? LIMIT 1`).get(template.id, today);
   if (!futurePending && cursor && template.generated_count + generated < (template.max_occurrences ?? Number.MAX_SAFE_INTEGER)) {
     generated += insertOccurrence(template, cursor);
-    cursor = nextRuleDate(template.rrule, cursor) || "";
+    cursor = nextRecurrenceDate(template.rrule, cursor) || "";
   }
   sqlite.prepare(`UPDATE todo_recurrence_templates
     SET generated_count = generated_count + ?, next_occurrence_date = ?, updated_at = ? WHERE id = ?`)
@@ -288,7 +223,7 @@ function itemDto(row: TodoItemRow, today: string) {
     id: row.id, recurrenceTemplateId: row.recurrence_template_id, source: row.source,
     title: row.title, scheduledFor: row.scheduled_for, status: row.status,
     completedAt: row.completed_at, createdAt: row.created_at, updatedAt: row.updated_at,
-    overdueDays: row.status === "pending" && row.scheduled_for < today ? dayDifference(today, row.scheduled_for) : 0,
+    overdueDays: row.status === "pending" && row.scheduled_for < today ? daysBetween(today, row.scheduled_for) : 0,
   };
 }
 
@@ -324,7 +259,7 @@ export function createTemporaryTodo(userId: string, titleValue: string, schedule
   ensureTodoSchema();
   const title = titleValue.trim();
   if (!title || title.length > 160) throw new Error("待办名称应为 1 至 160 个字符。");
-  if (!datePattern.test(scheduledFor)) throw new Error("截止日期无效。");
+  if (!DATE_PATTERN.test(scheduledFor)) throw new Error("截止日期无效。");
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   sqlite.prepare(`INSERT INTO todo_items
@@ -345,7 +280,7 @@ export function createTodoTemplate(userId: string, input: TodoTemplateInput) {
       next_occurrence_date, created_at, updated_at, deleted_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?, ?, NULL)`)
     .run(id, userId, value.title, value.frequency, value.interval, JSON.stringify(value.weekdays), value.monthDay,
-      value.recurrenceMode, buildRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences,
+      value.recurrenceMode, buildRecurrenceRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences,
       value.missedPolicy, value.waitForCompletion ? 1 : 0, value.startDate, now, now);
   materializeUserTodoInstances(userId, todayInTimeZone(value.timezone));
   return templateDto(sqlite.prepare("SELECT * FROM todo_recurrence_templates WHERE id = ? AND user_id = ?").get(id, userId) as TodoTemplateRow);
@@ -364,7 +299,7 @@ export function updateTodoTemplate(userId: string, id: string, input: TodoTempla
       recurrence_mode = ?, rrule = ?, timezone = ?, start_date = ?, end_date = ?, max_occurrences = ?, generated_count = ?,
       missed_policy = ?, wait_for_completion = ?, next_occurrence_date = ?, updated_at = ? WHERE id = ? AND user_id = ?`)
       .run(value.title, value.frequency, value.interval, JSON.stringify(value.weekdays), value.monthDay, value.recurrenceMode,
-        buildRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, Number(history.total),
+        buildRecurrenceRule(value), value.timezone, value.startDate, value.endDate, value.maxOccurrences, Number(history.total),
         value.missedPolicy, value.waitForCompletion ? 1 : 0, value.startDate, now, id, userId);
   });
   update();
@@ -431,7 +366,7 @@ export function updateTodoItem(userId: string, id: string, input: { action?: "co
     if (row.source !== "temporary") throw new Error("周期实例请通过周期任务设置修改。");
     const title = input.title?.trim() || row.title;
     const scheduledFor = input.scheduledFor || row.scheduled_for;
-    if (!title || title.length > 160 || !datePattern.test(scheduledFor)) throw new Error("临时待办内容无效。");
+    if (!title || title.length > 160 || !DATE_PATTERN.test(scheduledFor)) throw new Error("临时待办内容无效。");
     sqlite.prepare("UPDATE todo_items SET title = ?, scheduled_for = ?, updated_at = ? WHERE id = ? AND user_id = ?")
       .run(title, scheduledFor, now, id, userId);
   }

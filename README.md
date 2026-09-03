@@ -58,7 +58,7 @@ node dist/standalone/server.js
 
 独立产物根目录同时包含本项目许可证、第三方组件清单、完整第三方许可证文本和 MPL 对应源码获取说明。部署或转交 standalone 目录时，不要删除这些文件。
 
-生产环境必须设置新的 `BETTER_AUTH_SECRET`，并让 `BETTER_AUTH_URL` 与实际访问地址完全一致。完整说明见 [部署指南](docs/DEPLOYMENT.md)。
+生产环境必须设置新的 `BETTER_AUTH_SECRET`，并让 `BETTER_AUTH_URL` 与实际访问地址完全一致。局域网或反向代理部署还应通过 `BETTER_AUTH_TRUSTED_ORIGINS` 列出允许发起认证请求的完整来源。完整说明见 [部署指南](docs/DEPLOYMENT.md)。
 
 ## 配置
 
@@ -66,6 +66,7 @@ node dist/standalone/server.js
 | --- | --- | --- | --- |
 | `BETTER_AUTH_SECRET` | 生产必需 | 示例占位值 | 至少 32 字节的随机密钥，禁止提交真实值 |
 | `BETTER_AUTH_URL` | 是 | `http://localhost:3001` | 用户实际访问的完整源地址 |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | 否 | localhost 与 127.0.0.1 | 允许发起认证请求的完整来源，多个来源用英文逗号分隔 |
 | `WORKBENCH_DB_PATH` | 否 | `./data/workbench.sqlite` | SQLite 数据库路径 |
 | `WORKBENCH_ATTACHMENT_DIR` | 否 | `./data/attachments` | 附件存储目录 |
 | `PORT` | 否 | `3001` | HTTP 服务端口 |
