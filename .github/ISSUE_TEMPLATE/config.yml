@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report / 安全问题
+    url: https://github.com/HyperionCHI/Knowledge_Benchmark/security/policy
+    about: Please follow the private reporting guidance in SECURITY.md. 请按安全策略私下报告漏洞。

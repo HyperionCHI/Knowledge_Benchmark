@@ -1,6 +1,15 @@
 # Knowledge Workbench（知识工作台）
 
+[中文](README.md) | [English](README.en.md)
+
+[![CI](https://github.com/HyperionCHI/Knowledge_Benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/HyperionCHI/Knowledge_Benchmark/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+![Knowledge Workbench：面向团队的自托管知识管理工作台](docs/assets/knowledge-workbench-hero.png)
+
 一个面向团队的自托管知识库，集资料与制度、品牌/产品 SOP、项目链接、附件、术语、模板、个人待办和组织待办于同一界面。
+
+**Self-hosted knowledge management for teams.** Built with React, TypeScript, SQLite, Markdown, Mermaid and Better Auth.
 
 此目录是经过数据清理的发布副本：不包含原项目的数据库、账号、会话、知识正文、品牌目录、业务链接、附件、审计记录、行业术语或业务模板。首次启动会创建新的本地数据库，并引导创建首位管理员。
 
@@ -25,6 +34,8 @@
 ## 快速开始
 
 ```bash
+git clone https://github.com/HyperionCHI/Knowledge_Benchmark.git
+cd Knowledge_Benchmark
 cp .env.example .env
 pnpm install --frozen-lockfile
 pnpm dev
@@ -33,6 +44,8 @@ pnpm dev
 Windows PowerShell：
 
 ```powershell
+git clone https://github.com/HyperionCHI/Knowledge_Benchmark.git
+Set-Location Knowledge_Benchmark
 Copy-Item .env.example .env
 pnpm install --frozen-lockfile
 pnpm dev
