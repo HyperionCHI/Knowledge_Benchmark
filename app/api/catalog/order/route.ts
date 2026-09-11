@@ -1,5 +1,4 @@
 import { getWorkspaceAccess } from "../../../lib/authorize";
-import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
 import { readWorkspaceSnapshot, writeWorkspaceState, WorkspaceConflictError } from "../../../../db/workspace";
 import { audit, ensureWorkspaceRecordSchema } from "../../../../db/workspace-records";
 
@@ -17,7 +16,7 @@ function mergeSubset(current: string[], requested: string[], allowed: Set<string
 export async function PUT(request: Request) {
   const access = await getWorkspaceAccess(request);
   if (access.denied || !access.profile || !access.session?.user || !access.state) return access.denied;
-  if (access.profile.role !== "admin" && access.profile.role !== "editor") return Response.json({ error: "当前账号没有目录排序权限。" }, { status: 403 });
+  if (access.profile.role !== "admin") return Response.json({ error: "只有管理员可以调整品牌与产品目录顺序。" }, { status: 403 });
 
   try {
     const body = await request.json() as OrderBody;
@@ -31,7 +30,7 @@ export async function PUT(request: Request) {
 
     if (body.kind === "brands") {
       const current = state.brands.map((brand) => state.brandIds[brand]);
-      const allowedIds = current.filter((id, index) => access.profile!.role === "admin" || isWorkspaceScopeAllowed(state, access.profile!.scopes, state.brands[index]));
+      const allowedIds = current;
       if (!sameIds(allowedIds, body.ids)) return Response.json({ error: "可排序品牌列表已变化，请刷新后重试。", conflict: true }, { status: 409 });
       const merged = mergeSubset(current, body.ids, new Set(allowedIds));
       const byId = new Map(state.brands.map((brand) => [state.brandIds[brand], brand]));
@@ -39,10 +38,9 @@ export async function PUT(request: Request) {
     } else {
       const brand = state.brands.find((name) => state.brandIds[name] === body.brandId);
       if (!brand) return Response.json({ error: "品牌不存在。" }, { status: 404 });
-      if (access.profile.role !== "admin" && !isWorkspaceScopeAllowed(state, access.profile.scopes, brand)) return Response.json({ error: "没有该品牌的目录排序权限。" }, { status: 403 });
       const products = state.productsByBrand[brand] || [];
       const current = products.map((product) => state.productIds[`${brand}/${product}`]);
-      const allowedIds = current.filter((id, index) => access.profile!.role === "admin" || isWorkspaceScopeAllowed(state, access.profile!.scopes, brand, products[index]));
+      const allowedIds = current;
       if (!sameIds(allowedIds, body.ids)) return Response.json({ error: "可排序产品列表已变化，请刷新后重试。", conflict: true }, { status: 409 });
       const merged = mergeSubset(current, body.ids, new Set(allowedIds));
       const byId = new Map(products.map((product) => [state.productIds[`${brand}/${product}`], product]));

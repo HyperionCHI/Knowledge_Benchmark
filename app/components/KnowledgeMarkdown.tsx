@@ -5,6 +5,10 @@ import { Children, isValidElement, memo, useCallback, useEffect, useId, useRef, 
 import { createPortal } from "react-dom";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import remarkDirective from "remark-directive";
+import rehypeKatex from "rehype-katex";
+import { normalizeCherryBlocks, remarkCherryBlocks } from "../lib/cherry-markdown-syntax";
 
 export type MarkdownAttachment = { id: string; name: string; type: string; size: number; url: string };
 
@@ -235,7 +239,7 @@ function sameAttachments(left: MarkdownAttachment[] | undefined, right: Markdown
   });
 }
 
-export const KnowledgeMarkdown = memo(function KnowledgeMarkdown({ markdown, attachments = [], className = "" }: { markdown: string; attachments?: MarkdownAttachment[]; className?: string }) {
+export const KnowledgeMarkdown = memo(function KnowledgeMarkdown({ markdown, attachments = [], className = "", wrapContent = false }: { markdown: string; attachments?: MarkdownAttachment[]; className?: string; wrapContent?: boolean }) {
   const [preview, setPreview] = useState<MediaPreview | null>(null);
   const closePreview = useCallback(() => setPreview(null), []);
   const components: Components = {
@@ -275,5 +279,6 @@ export const KnowledgeMarkdown = memo(function KnowledgeMarkdown({ markdown, att
       return <aside className={asideClassName}>{children}</aside>;
     },
   };
-  return <><div className={className}><ReactMarkdown remarkPlugins={[remarkGfm, remarkObsidian, remarkSoftBreaks]} components={components}>{markdown}</ReactMarkdown></div>{preview && createPortal(<MediaLightbox preview={preview} onClose={closePreview} />, document.body)}</>;
-}, (previous, next) => previous.markdown === next.markdown && previous.className === next.className && sameAttachments(previous.attachments, next.attachments));
+  const content = <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkCherryBlocks, remarkObsidian, remarkSoftBreaks]} rehypePlugins={[[rehypeKatex, { trust: false, strict: "ignore" }]]} components={components}>{normalizeCherryBlocks(markdown)}</ReactMarkdown>;
+  return <><div className={className}>{wrapContent ? <div className="knowledge-editor-preview-content">{content}</div> : content}</div>{preview && createPortal(<MediaLightbox preview={preview} onClose={closePreview} />, document.body)}</>;
+}, (previous, next) => previous.markdown === next.markdown && previous.className === next.className && previous.wrapContent === next.wrapContent && sameAttachments(previous.attachments, next.attachments));

@@ -2,7 +2,7 @@
 
 > 此文件由 `scripts/generate-third-party-notices.mjs` 根据当前生产依赖自动生成，请勿手工编辑。
 
-本发布使用 482 个已解析的生产依赖包版本，其中 13 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
+本发布使用 504 个已解析的生产依赖包版本，其中 17 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
 
 | 组件 | 类型 | 许可证 | 上游源码 |
 | --- | --- | --- | --- |
@@ -98,6 +98,7 @@
 | `@types/geojson@7946.0.16` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | `@types/hast@3.0.5` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | `@types/json-schema@7.0.15` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
+| `@types/katex@0.16.8` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | `@types/mdast@4.0.4` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | `@types/ms@2.1.0` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | `@types/node@22.19.19` | 传递运行依赖 | `MIT` | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
@@ -240,6 +241,7 @@
 | `emoji-regex-xs@2.0.1` | 传递运行依赖 | `MIT` | <https://github.com/slevithan/emoji-regex-xs> |
 | `enhanced-resolve@5.24.5` | 传递运行依赖 | `MIT` | <https://github.com/webpack/enhanced-resolve> |
 | `entities@4.5.0` | 传递运行依赖 | `BSD-2-Clause` | <https://github.com/fb55/entities> |
+| `entities@6.0.1` | 传递运行依赖 | `BSD-2-Clause` | <https://github.com/fb55/entities> |
 | `entities@7.0.1` | 传递运行依赖 | `BSD-2-Clause` | <https://github.com/fb55/entities> |
 | `es-define-property@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/ljharb/es-define-property> |
 | `es-errors@1.3.0` | 传递运行依赖 | `MIT` | <https://github.com/ljharb/es-errors> |
@@ -282,8 +284,16 @@
 | `has-symbols@1.1.0` | 传递运行依赖 | `MIT` | <https://github.com/inspect-js/has-symbols> |
 | `has-tostringtag@1.0.2` | 传递运行依赖 | `MIT` | <https://github.com/inspect-js/has-tostringtag> |
 | `hasown@2.0.4` | 传递运行依赖 | `MIT` | <https://github.com/inspect-js/hasOwn> |
+| `hast-util-from-dom@5.0.1` | 传递运行依赖 | `ISC` | <syntax-tree/hast-util-from-dom> |
+| `hast-util-from-html-isomorphic@2.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-from-html-isomorphic> |
+| `hast-util-from-html@2.0.3` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-from-html> |
+| `hast-util-from-parse5@8.0.3` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-from-parse5> |
+| `hast-util-is-element@3.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-is-element> |
+| `hast-util-parse-selector@4.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-parse-selector> |
 | `hast-util-to-jsx-runtime@2.3.6` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-to-jsx-runtime> |
+| `hast-util-to-text@4.0.2` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-to-text> |
 | `hast-util-whitespace@3.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/hast-util-whitespace> |
+| `hastscript@9.0.1` | 传递运行依赖 | `MIT` | <syntax-tree/hastscript> |
 | `hex-rgb@4.3.0` | 传递运行依赖 | `MIT` | <sindresorhus/hex-rgb> |
 | `html-encoding-sniffer@3.0.0` | 传递运行依赖 | `MIT` | <jsdom/html-encoding-sniffer> |
 | `html-url-attributes@3.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rehypejs/rehype-minify/tree/main/packages/html-url-attributes> |
@@ -310,7 +320,7 @@
 | `jose@6.2.9` | 传递运行依赖 | `MIT` | <panva/jose> |
 | `jsdom@19.0.0` | 传递运行依赖 | `MIT` | <jsdom/jsdom> |
 | `json-schema-traverse@1.0.0` | 传递运行依赖 | `MIT` | <https://github.com/epoberezkin/json-schema-traverse> |
-| `katex@0.16.47` | 传递运行依赖 | `MIT` | <https://github.com/KaTeX/KaTeX> |
+| `katex@0.16.47` | 直接运行依赖 | `MIT` | <https://github.com/KaTeX/KaTeX> |
 | `khroma@2.1.0` | 传递运行依赖 | `MIT` | <github:fabiospampinato/khroma> |
 | `kysely@0.29.5` | 传递运行依赖 | `MIT` | <https://github.com/kysely-org/kysely> |
 | `layout-base@1.0.2` | 传递运行依赖 | `MIT` | <https://github.com/iVis-at-Bilkent/layout-base> |
@@ -325,6 +335,7 @@
 | `markdown-table@3.0.4` | 传递运行依赖 | `MIT` | <wooorm/markdown-table> |
 | `marked@16.4.2` | 传递运行依赖 | `MIT` | <https://github.com/markedjs/marked> |
 | `math-intrinsics@1.1.0` | 传递运行依赖 | `MIT` | <https://github.com/es-shims/math-intrinsics> |
+| `mdast-util-directive@3.1.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-directive> |
 | `mdast-util-find-and-replace@3.0.2` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-find-and-replace> |
 | `mdast-util-from-markdown@2.0.3` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-from-markdown> |
 | `mdast-util-gfm-autolink-literal@2.0.1` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-gfm-autolink-literal> |
@@ -333,6 +344,7 @@
 | `mdast-util-gfm-table@2.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-gfm-table> |
 | `mdast-util-gfm-task-list-item@2.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-gfm-task-list-item> |
 | `mdast-util-gfm@3.1.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-gfm> |
+| `mdast-util-math@3.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-math> |
 | `mdast-util-mdx-expression@2.0.1` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-mdx-expression> |
 | `mdast-util-mdx-jsx@3.2.0` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-mdx-jsx> |
 | `mdast-util-mdxjs-esm@2.0.1` | 传递运行依赖 | `MIT` | <syntax-tree/mdast-util-mdxjs-esm> |
@@ -344,6 +356,7 @@
 | `merge2@1.4.1` | 传递运行依赖 | `MIT` | <https://github.com/teambition/merge2> |
 | `mermaid@11.17.0` | 直接运行依赖 | `MIT` | <https://github.com/mermaid-js/mermaid> |
 | `micromark-core-commonmark@2.0.3` | 传递运行依赖 | `MIT` | <https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark> |
+| `micromark-extension-directive@4.0.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-directive> |
 | `micromark-extension-gfm-autolink-literal@2.1.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm-autolink-literal> |
 | `micromark-extension-gfm-footnote@2.1.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm-footnote> |
 | `micromark-extension-gfm-strikethrough@2.1.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm-strikethrough> |
@@ -351,6 +364,7 @@
 | `micromark-extension-gfm-tagfilter@2.0.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm-tagfilter> |
 | `micromark-extension-gfm-task-list-item@2.1.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm-task-list-item> |
 | `micromark-extension-gfm@3.0.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-gfm> |
+| `micromark-extension-math@3.1.0` | 传递运行依赖 | `MIT` | <micromark/micromark-extension-math> |
 | `micromark-factory-destination@2.0.1` | 传递运行依赖 | `MIT` | <https://github.com/micromark/micromark/tree/main/packages/micromark-factory-destination> |
 | `micromark-factory-label@2.0.1` | 传递运行依赖 | `MIT` | <https://github.com/micromark/micromark/tree/main/packages/micromark-factory-label> |
 | `micromark-factory-space@2.0.1` | 传递运行依赖 | `MIT` | <https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space> |
@@ -389,6 +403,7 @@
 | `parse-css-color@0.2.1` | 传递运行依赖 | `MIT` | <https://github.com/noeldelgado/parse-css-color> |
 | `parse-entities@4.0.2` | 传递运行依赖 | `MIT` | <wooorm/parse-entities> |
 | `parse5@6.0.1` | 传递运行依赖 | `MIT` | <https://github.com/inikulin/parse5> |
+| `parse5@7.3.0` | 传递运行依赖 | `MIT` | <https://github.com/inikulin/parse5> |
 | `path-data-parser@0.1.0` | 传递运行依赖 | `MIT` | <https://github.com/pshihn/path-data-parser> |
 | `picocolors@1.1.1` | 传递运行依赖 | `ISC` | <alexeyraspopov/picocolors> |
 | `picomatch@2.3.2` | 传递运行依赖 | `MIT` | <micromatch/picomatch> |
@@ -406,7 +421,10 @@
 | `react-markdown@10.1.0` | 直接运行依赖 | `MIT` | <remarkjs/react-markdown> |
 | `react-server-dom-webpack@19.2.6` | 构建运行框架 | `MIT` | <https://github.com/facebook/react> |
 | `react@19.2.6` | 直接运行依赖 | `MIT` | <https://github.com/facebook/react> |
+| `rehype-katex@7.0.1` | 直接运行依赖 | `MIT` | <https://github.com/remarkjs/remark-math/tree/main/packages/rehype-katex> |
+| `remark-directive@4.0.0` | 直接运行依赖 | `MIT` | <remarkjs/remark-directive> |
 | `remark-gfm@4.0.1` | 直接运行依赖 | `MIT` | <remarkjs/remark-gfm> |
+| `remark-math@6.0.0` | 直接运行依赖 | `MIT` | <https://github.com/remarkjs/remark-math/tree/main/packages/remark-math> |
 | `remark-parse@11.0.0` | 传递运行依赖 | `MIT` | <https://github.com/remarkjs/remark/tree/main/packages/remark-parse> |
 | `remark-rehype@11.1.2` | 传递运行依赖 | `MIT` | <remarkjs/remark-rehype> |
 | `remark-stringify@11.0.0` | 传递运行依赖 | `MIT` | <https://github.com/remarkjs/remark/tree/main/packages/remark-stringify> |
@@ -454,8 +472,10 @@
 | `undici-types@6.21.0` | 传递运行依赖 | `MIT` | <https://github.com/nodejs/undici> |
 | `unicode-trie@2.0.0` | 传递运行依赖 | `MIT` | <https://github.com/devongovett/unicode-trie> |
 | `unified@11.0.5` | 传递运行依赖 | `MIT` | <unifiedjs/unified> |
+| `unist-util-find-after@5.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-find-after> |
 | `unist-util-is@6.0.1` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-is> |
 | `unist-util-position@5.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-position> |
+| `unist-util-remove-position@5.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-remove-position> |
 | `unist-util-stringify-position@4.0.0` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-stringify-position> |
 | `unist-util-visit-parents@6.0.2` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-visit-parents> |
 | `unist-util-visit@5.1.0` | 传递运行依赖 | `MIT` | <syntax-tree/unist-util-visit> |
@@ -464,6 +484,7 @@
 | `update-browserslist-db@1.3.1` | 传递运行依赖 | `MIT` | <browserslist/update-db> |
 | `url-parse@1.5.10` | 传递运行依赖 | `MIT` | <https://github.com/unshiftio/url-parse> |
 | `uuid@14.0.1` | 传递运行依赖 | `MIT` | <https://github.com/uuidjs/uuid> |
+| `vfile-location@5.0.3` | 传递运行依赖 | `MIT` | <vfile/vfile-location> |
 | `vfile-message@4.0.3` | 传递运行依赖 | `MIT` | <vfile/vfile-message> |
 | `vfile@6.0.3` | 传递运行依赖 | `MIT` | <vfile/vfile> |
 | `vinext@1.0.0-beta.2` | 构建运行框架 | `MIT` | <https://github.com/cloudflare/vinext> |
@@ -474,6 +495,7 @@
 | `w3c-keyname@2.2.8` | 传递运行依赖 | `MIT` | <https://github.com/marijnh/w3c-keyname> |
 | `w3c-xmlserializer@3.0.0` | 传递运行依赖 | `MIT` | <jsdom/w3c-xmlserializer> |
 | `watchpack@2.5.2` | 传递运行依赖 | `MIT` | <https://github.com/webpack/watchpack> |
+| `web-namespaces@2.0.1` | 传递运行依赖 | `MIT` | <wooorm/web-namespaces> |
 | `web-vitals@4.2.4` | 传递运行依赖 | `Apache-2.0` | <https://github.com/GoogleChrome/web-vitals> |
 | `webidl-conversions@7.0.0` | 传递运行依赖 | `BSD-2-Clause` | <jsdom/webidl-conversions> |
 | `webpack-sources@3.5.1` | 传递运行依赖 | `MIT` | <https://github.com/webpack/webpack-sources> |

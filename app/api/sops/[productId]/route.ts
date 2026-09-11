@@ -1,5 +1,5 @@
 import { getWorkspaceAccess } from "../../../lib/authorize";
-import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
+import { canEditWorkspaceScope } from "../../../lib/workspace-permissions";
 import { audit, ensureWorkspaceRecordSchema, resolveProductNames, snapshotVersion } from "../../../../db/workspace-records";
 import { DEFAULT_SOP_CATEGORY, ensureKnowledgeSchema, getKnowledgeCategory, getKnowledgeSpace, type KnowledgeDocumentRow } from "../../../../db/knowledge";
 import { sqlite } from "../../../../db/local";
@@ -11,7 +11,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ prod
   if (access.denied || !access.profile || !access.session?.user || !access.state) return access.denied;
   const productId = (await params).productId, target = resolveProductNames(access.state, productId);
   if (!target) return Response.json({ error: "产品不存在。" }, { status: 404 });
-  if (access.profile.role !== "admin" && (access.profile.role !== "editor" || !isWorkspaceScopeAllowed(access.state, access.profile.scopes, target.brand, target.product))) return Response.json({ error: "没有该产品的编辑权限。" }, { status: 403 });
+  if (!canEditWorkspaceScope(access.state, access.profile, target.brand, target.product)) return Response.json({ error: "没有该产品的编辑权限。" }, { status: 403 });
   const body = await request.json() as { content?: string; version?: number }, content = body.content?.trim() || "";
   if (!content) return Response.json({ error: "SOP 正文不能为空。" }, { status: 400 });
   ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state);

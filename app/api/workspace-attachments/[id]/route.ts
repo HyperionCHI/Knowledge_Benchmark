@@ -3,7 +3,7 @@ import { getWorkspaceAccess } from "../../../lib/authorize";
 import { ensureWorkspaceRecordSchema } from "../../../../db/workspace-records";
 import { ensureKnowledgeSchema } from "../../../../db/knowledge";
 import { validateWorkspaceFile } from "../../../lib/file-policy";
-import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
+import { canViewWorkspaceScope } from "../../../lib/workspace-permissions";
 import { isKnowledgeAttachmentScope, resolveOwnedKnowledgeAttachmentAccess } from "../../../lib/knowledge-attachment-access";
 import { createWorkspaceAttachmentVersion } from "../../../lib/workspace-attachment-versions";
 
@@ -36,12 +36,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const state = access.state;
     if (!state) return Response.json({ error: "工作台状态不可用。" }, { status: 500 });
     if (access.profile.role !== "admin") {
-      const reference = `custom:/api/workspace-attachments/${row.id}`, scopes = access.profile.scopes;
-      const visibleBrandReference = state.brands.some((brand) => state.brandIcons[brand] === reference && isWorkspaceScopeAllowed(state, scopes, brand));
-      const visibleProductReference = state.brands.some((brand) => (state.productsByBrand[brand] || []).some((product) => state.productIcons[`${brand}/${product}`] === reference && isWorkspaceScopeAllowed(state, scopes, brand, product)));
+      const reference = `custom:/api/workspace-attachments/${row.id}`;
+      const visibleBrandReference = state.brands.some((brand) => state.brandIcons[brand] === reference && canViewWorkspaceScope(state, access.profile!, brand));
+      const visibleProductReference = state.brands.some((brand) => (state.productsByBrand[brand] || []).some((product) => state.productIcons[`${brand}/${product}`] === reference && canViewWorkspaceScope(state, access.profile!, brand, product)));
       if (!visibleBrandReference && !visibleProductReference) return Response.json({ error: "没有该附件的访问权限。" }, { status: 403 });
     }
-  } else if (access.profile.role !== "admin" && !access.profile.scopes.includes("*") && !access.profile.scopes.includes(row.brand) && !access.profile.scopes.includes(`${row.brand} / ${row.product}`)) return Response.json({ error: "没有该附件的访问权限。" }, { status: 403 });
+  } else if (access.profile.role !== "admin" && (!access.state || !canViewWorkspaceScope(access.state, access.profile, row.brand, row.product))) return Response.json({ error: "没有该附件的访问权限。" }, { status: 403 });
   const requestedVersion = Number(new URL(request.url).searchParams.get("version") || 0);
   if (requestedVersion <= 0 && (!row.name.trim() || Number(row.size) <= 0)) return Response.json({ error: "该资料没有上传附件。" }, { status: 404 });
   const version = requestedVersion > 0 ? await getWorkspaceAssetBindings().DB.prepare("SELECT * FROM workspace_attachment_versions WHERE attachment_id = ? AND version = ?").bind(row.id, requestedVersion).first<{ storage_key: string; content_type: string; name: string }>() : null;

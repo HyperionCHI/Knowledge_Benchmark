@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "katex/dist/katex.min.css";
+import "./editor-layout.css";
 
 export const metadata: Metadata = {
   title: "工作空间 · 知识工作台",

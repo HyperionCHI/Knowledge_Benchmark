@@ -15,6 +15,7 @@ import {
 } from "../lib/knowledge-document-style";
 import { CherrySopEditor, type CherrySopEditorHandle } from "./CherrySopEditor";
 import { extractObsidianEmbedNames, KnowledgeMarkdown } from "./KnowledgeMarkdown";
+import { editorDraftKey, parseEditorDraft, type EditorDraft } from "../lib/editor-draft";
 
 export type KnowledgeAttachment = { id: string; title?: string; summary?: string; content?: string; name: string; attachmentName?: string | null; attachmentSize?: number | null; hasAttachment?: boolean; type: string; size: number; url: string; referenceCount?: number; version?: number; updatedBy?: string; updatedAt?: string };
 export type KnowledgeCollaborator = { userId: string; name: string; email: string; permission: "view" | "edit" };
@@ -36,7 +37,7 @@ function withoutAttachmentReferences(markdown: string, attachment: KnowledgeAtta
 }
 
 export function KnowledgeDocumentEditorDialog({
-  record, categories, defaultCategory, scope, draftNamespace, brand = "", product = "", title, saveLabel,
+  record, categories, defaultCategory, scope, draftNamespace, draftOwnerId, brand = "", product = "", title, saveLabel,
   onSave, onEnsureDocument, onClose, onCategoryAction, toast, canManageCategories = true,
 }: {
   record: EditableKnowledgeDocument | null;
@@ -44,6 +45,7 @@ export function KnowledgeDocumentEditorDialog({
   defaultCategory: string;
   scope: "doc" | "other-doc" | "sop";
   draftNamespace?: string;
+  draftOwnerId: string;
   brand?: string;
   product?: string;
   title: string;
@@ -56,16 +58,21 @@ export function KnowledgeDocumentEditorDialog({
   canManageCategories?: boolean;
 }) {
   const initialBody = record?.body || "# 新文档\n\n请在此编写正文。";
-  const draftKey = `workspace-draft:${draftNamespace || scope}:${record?.id || "new"}`;
+  const draftKey = editorDraftKey(draftOwnerId, draftNamespace || scope, brand, product, record?.id);
   const [name, setName] = useState(record?.title || "");
   const [group, setGroup] = useState(record?.group || (categories.includes(defaultCategory) ? defaultCategory : categories[0] || defaultCategory));
-  const [draft, setDraft] = useState(() => window.localStorage.getItem(draftKey) || initialBody);
+  const [draft, setDraft] = useState(initialBody);
+  const [recoverableDraft, setRecoverableDraft] = useState<EditorDraft | null>(() => {
+    try { return parseEditorDraft(window.localStorage.getItem(draftKey)); } catch { return null; }
+  });
+  const [restoredAttachmentIds, setRestoredAttachmentIds] = useState<string[] | null>(null);
   const [attachments, setAttachments] = useState<KnowledgeAttachment[]>(record?.attachments || []);
   const [status, setStatus] = useState<"draft" | "published" | "archived">(record?.status || "draft");
   const [treeIcon, setTreeIcon] = useState(() => normalizeDocumentTreeIcon(record?.treeIcon));
   const [treeIconColor, setTreeIconColor] = useState(() => normalizeDocumentTreeIconColor(record?.treeIconColor));
   const [documentId, setDocumentId] = useState(record?.id || "");
   const [library, setLibrary] = useState<KnowledgeAttachment[]>([]);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryPage, setLibraryPage] = useState(0);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
@@ -93,25 +100,69 @@ export function KnowledgeDocumentEditorDialog({
   const editorRef = useRef<CherrySopEditorHandle>(null);
   const libraryLoadVersion = useRef(0);
   const previousDraftKey = useRef(draftKey);
+  const draftFinished = useRef(false);
+  const storageWarningShown = useRef(false);
+  const flushDraftRef = useRef<(() => void) | null>(null);
   const originalAttachmentIds = useMemo(() => (record?.attachments || []).map((item) => item.id).join("|"), [record]);
   const preservedCollaborators = useMemo(() => (record?.collaborators || []).map((item) => ({ userId: item.userId, permission: item.permission })), [record]);
   const dirty = name !== (record?.title || "") || group !== (record?.group || defaultCategory) || draft !== initialBody || attachments.map((item) => item.id).join("|") !== originalAttachmentIds || pendingDeleteIds.length > 0 || status !== (record?.status || "draft") || treeIcon !== (record?.treeIcon || DEFAULT_DOCUMENT_TREE_ICON) || treeIconColor !== (record?.treeIconColor || DEFAULT_DOCUMENT_TREE_ICON_COLOR);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("workspace-dirty", { detail: dirty }));
-    if (dirty) window.localStorage.setItem(draftKey, draft);
-    return () => { window.dispatchEvent(new CustomEvent("workspace-dirty", { detail: false })); };
-  }, [dirty, draft, draftKey]);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const flush = () => flushDraftRef.current?.();
+    window.addEventListener("pagehide", flush);
+    return () => { flush(); window.removeEventListener("pagehide", flush); document.body.style.overflow = previous; };
+  }, []);
   useEffect(() => {
-    if (previousDraftKey.current !== draftKey) window.localStorage.removeItem(previousDraftKey.current);
-    previousDraftKey.current = draftKey;
-  }, [draftKey]);
+    window.dispatchEvent(new CustomEvent("workspace-dirty", { detail: dirty }));
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => { window.removeEventListener("beforeunload", warnBeforeUnload); window.dispatchEvent(new CustomEvent("workspace-dirty", { detail: false })); };
+  }, [dirty]);
+  useEffect(() => {
+    if (!dirty || recoverableDraft || draftFinished.current) return;
+    const snapshot: EditorDraft = { title: name, group, body: draft, attachmentIds: restoredAttachmentIds || attachments.map((item) => item.id), pendingDeleteIds, status, treeIcon, treeIconColor, baseVersion: record?.version || 0, savedAt: new Date().toISOString() };
+    const persist = () => {
+      if (draftFinished.current) return;
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify(snapshot));
+        if (previousDraftKey.current !== draftKey) window.localStorage.removeItem(previousDraftKey.current);
+        previousDraftKey.current = draftKey;
+      } catch {
+        if (!storageWarningShown.current) { storageWarningShown.current = true; toast("浏览器无法保存本地草稿，请及时保存文章。"); }
+      }
+    };
+    flushDraftRef.current = persist;
+    const timer = window.setTimeout(persist, 400);
+    return () => { window.clearTimeout(timer); };
+  }, [dirty, recoverableDraft, name, group, draft, attachments, restoredAttachmentIds, pendingDeleteIds, status, treeIcon, treeIconColor, record?.version, draftKey, toast]);
+  useEffect(() => {
+    if (!restoredAttachmentIds || (!libraryLoaded && Boolean(documentId))) return;
+    const available = [...(record?.attachments || []), ...library];
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Resolve recovered IDs after the asynchronous attachment request completes.
+    setAttachments(available.filter((item, index) => restoredAttachmentIds.includes(item.id) && available.findIndex((candidate) => candidate.id === item.id) === index));
+    if (restoredAttachmentIds.some((id) => !available.some((item) => item.id === id))) toast("草稿中的部分附件已不存在或无权访问，请重新核对附件引用。");
+    setRestoredAttachmentIds(null);
+  }, [restoredAttachmentIds, libraryLoaded, library, record?.attachments, documentId, toast]);
+  function discardLocalDraft() {
+    draftFinished.current = true;
+    try { window.localStorage.removeItem(draftKey); window.localStorage.removeItem(previousDraftKey.current); } catch { /* Storage may be disabled. */ }
+  }
+  function restoreLocalDraft() {
+    if (!recoverableDraft) return;
+    setName(recoverableDraft.title); setGroup(categories.includes(recoverableDraft.group) ? recoverableDraft.group : defaultCategory);
+    setDraft(recoverableDraft.body); setStatus(recoverableDraft.status);
+    setTreeIcon(normalizeDocumentTreeIcon(recoverableDraft.treeIcon)); setTreeIconColor(normalizeDocumentTreeIconColor(recoverableDraft.treeIconColor));
+    setRestoredAttachmentIds(recoverableDraft.attachmentIds); setPendingDeleteIds(recoverableDraft.pendingDeleteIds);
+    setRecoverableDraft(null);
+  }
   async function loadLibrary(documentId: string, signal?: AbortSignal) {
     const loadVersion = ++libraryLoadVersion.current;
     const params = new URLSearchParams({ scope, documentId }); if (brand) params.set("brand", brand); if (product) params.set("product", product);
     const response = await fetch(`/api/workspace-attachments?${params}`, { signal });
     const body = await response.json(); if (!response.ok) throw new Error(body.error || "附件库读取失败");
-    if (loadVersion === libraryLoadVersion.current) setLibrary(body.attachments || []);
+    if (loadVersion === libraryLoadVersion.current) { setLibrary(body.attachments || []); setLibraryLoaded(true); }
   }
 
   useEffect(() => {
@@ -133,6 +184,8 @@ export function KnowledgeDocumentEditorDialog({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy || attachmentBusy) return;
+    if (restoredAttachmentIds?.length) return toast("正在核对草稿中的附件，请稍后保存。");
     if (!name.trim() || !draft.trim()) return toast("标题和正文不能为空");
     const embeddedNames = [...new Set(extractObsidianEmbedNames(draft))];
     const embeddedAttachments = embeddedNames.map((embeddedName) => library.find((item) => item.name.replaceAll("\\", "/").split("/").pop()?.trim().toLocaleLowerCase() === embeddedName));
@@ -162,13 +215,13 @@ export function KnowledgeDocumentEditorDialog({
       setPendingDeleteIds(failed);
       if (failed.length) return toast(`${failed.length} 个附件未能永久删除，文章修改已经保存，可重试删除`);
     }
-    if (saved) { window.localStorage.removeItem(draftKey); onClose(); }
+    if (saved) { discardLocalDraft(); onClose(); }
     else window.dispatchEvent(new CustomEvent("workspace-dirty", { detail: dirty }));
   }
 
   function close() {
     if (dirty && !window.confirm("有未保存的修改，确认关闭并丢弃本地草稿吗？")) return;
-    window.localStorage.removeItem(draftKey); onClose();
+    discardLocalDraft(); onClose();
   }
 
   async function saveCategory(event: FormEvent<HTMLFormElement>) {
@@ -312,7 +365,7 @@ export function KnowledgeDocumentEditorDialog({
   const pendingFileLabel = pendingFiles.length > 1 ? `已选择 ${pendingFiles.length} 个文件` : pendingFiles[0]?.name || "选择文件";
 
   return <div className="modal-backdrop document-editor-backdrop"><form className="modal doc-editor-modal cherry-doc-modal" onSubmit={submit}>
-    <header><div><span>CHERRY DOCUMENT EDITOR</span><h2>{title}</h2><p>正文与预览是主工作区；附件上传后可按需插入当前光标位置。</p></div><button className="icon-button" title="关闭" type="button" onClick={close}><ActionIcon name="close" /></button></header>
+    <header><div><span>CHERRY DOCUMENT EDITOR</span><h2>{title}</h2><p>正文与预览是主工作区；附件上传后可按需插入当前光标位置。</p>{recoverableDraft && <div className="editor-draft-recovery" role="status"><span>{recoverableDraft.baseVersion !== (record?.version || 0) ? "文章版本已变化，恢复旧草稿后请核对最新内容。" : "发现未保存的本地草稿。"}</span><button type="button" onClick={restoreLocalDraft}>恢复草稿</button><button type="button" onClick={() => { try { window.localStorage.removeItem(draftKey); } catch { /* Storage may be disabled. */ } setRecoverableDraft(null); }}>使用当前文章</button></div>}</div><button className="icon-button" title="关闭" type="button" onClick={close}><ActionIcon name="close" /></button></header>
     <div className="doc-editor-fields">
       <label>文档标题<input required value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label>所属分类<div className="doc-category-field"><select required value={group} onChange={(event) => setGroup(event.target.value)}>{categories.map((category) => <option value={category} key={category}>{category}</option>)}</select>{canManageCategories && <button type="button" onClick={() => setCategoryManagerOpen(true)}><ActionIcon name="folder" />分类</button>}</div></label>

@@ -1,7 +1,8 @@
 import { readWorkspaceSnapshot, writeWorkspaceState, WorkspaceConflictError, type WorkspaceUser } from "../../../db/workspace";
 import { currentSession } from "../../lib/auth";
-import { isWorkspaceScopeAllowed, normalizeWorkspaceScopes } from "../../lib/workspace-scopes";
 import { readWorkspaceRecords } from "../../../db/workspace-records";
+import { readWorkspaceUserPermissions, replaceWorkspaceUserPermissions } from "../../../db/workspace-permissions";
+import { canEditGeneralContent, canEditWorkspaceScope, canViewWorkspaceScope, hasAnyWorkspaceEdit } from "../../lib/workspace-permissions";
 
 export async function GET(request: Request) {
   try {
@@ -14,34 +15,35 @@ export async function GET(request: Request) {
       profile = { ...identity, role: ((session.user as typeof session.user & { role?: string }).role as WorkspaceUser["role"]) || (state.users.length === 0 ? "admin" : "viewer"), scopes: ["*"] } satisfies WorkspaceUser;
       state.users.push(profile);
       revision = await writeWorkspaceState(state, revision);
+      if (profile.role !== "admin") replaceWorkspaceUserPermissions(state, profile.id, "view", [{ scopeType: "all", scopeId: "*", permission: "view" }], "system-bootstrap");
     }
-    profile.scopes = normalizeWorkspaceScopes(state, profile.scopes);
+    Object.assign(profile, readWorkspaceUserPermissions(state, profile));
     state.docs = state.docs.map((item) => {
       const collaborator = item.collaborators?.find((entry) => entry.userId === identity.id);
-      const canEdit = profile.role === "admin" || collaborator?.permission === "edit" || (profile.role === "editor" && !item.collaborators?.length);
+      const canEdit = profile.role === "admin" || (canEditGeneralContent(profile) && (collaborator?.permission === "edit" || !item.collaborators?.length));
       return { ...item, canEdit, canManage: profile.role === "admin" };
     }).filter((item) => item.status === "published" || item.canEdit || item.collaborators?.some((entry) => entry.userId === identity.id));
     state.otherDocs = state.otherDocs.map((item) => {
       const collaborator = item.collaborators?.find((entry) => entry.userId === identity.id);
-      const canEdit = profile.role === "admin" || collaborator?.permission === "edit" || (profile.role === "editor" && !item.collaborators?.length);
+      const canEdit = profile.role === "admin" || (canEditGeneralContent(profile) && (collaborator?.permission === "edit" || !item.collaborators?.length));
       return { ...item, canEdit, canManage: profile.role === "admin" };
     }).filter((item) => item.status === "published" || item.canEdit || item.collaborators?.some((entry) => entry.userId === identity.id));
     state.sops = state.sops.map((item) => {
-      const scopeAllowed = isWorkspaceScopeAllowed(state, profile.scopes, item.brand, item.product);
+      const scopeEditable = canEditWorkspaceScope(state, profile, item.brand, item.product);
       const collaborator = item.collaborators?.find((entry) => entry.userId === identity.id);
-      const canEdit = profile.role === "admin" || (scopeAllowed && (collaborator?.permission === "edit" || (profile.role === "editor" && !item.collaborators?.length)));
+      const canEdit = profile.role === "admin" || (scopeEditable && (collaborator?.permission === "edit" || !item.collaborators?.length));
       return { ...item, canEdit, canManage: profile.role === "admin" };
     }).filter((item) => {
-      const scopeAllowed = profile.role === "admin" || isWorkspaceScopeAllowed(state, profile.scopes, item.brand, item.product);
+      const scopeAllowed = canViewWorkspaceScope(state, profile, item.brand, item.product);
       return scopeAllowed && (item.status === "published" || item.canEdit || item.collaborators?.some((entry) => entry.userId === identity.id));
     });
-    const visibleState = profile.role === "admin" || profile.scopes.includes("*") ? state : {
+    const visibleState = profile.role === "admin" ? state : {
       ...state,
-      brands: state.brands.filter((brand) => isWorkspaceScopeAllowed(state, profile.scopes, brand)),
-      productsByBrand: Object.fromEntries(state.brands.map((brand) => [brand, (state.productsByBrand[brand] || []).filter((product) => isWorkspaceScopeAllowed(state, profile.scopes, brand, product))])),
-      links: state.links.filter((item) => isWorkspaceScopeAllowed(state, profile.scopes, item.brand, item.product)),
-      sops: state.sops.filter((item) => isWorkspaceScopeAllowed(state, profile.scopes, item.brand, item.product)),
-      sopCategories: state.sopCategories.filter((item) => isWorkspaceScopeAllowed(state, profile.scopes, item.brand, item.product)),
+      brands: state.brands.filter((brand) => canViewWorkspaceScope(state, profile, brand)),
+      productsByBrand: Object.fromEntries(state.brands.map((brand) => [brand, (state.productsByBrand[brand] || []).filter((product) => canViewWorkspaceScope(state, profile, brand, product))])),
+      links: state.links.filter((item) => canViewWorkspaceScope(state, profile, item.brand, item.product)),
+      sops: state.sops.filter((item) => canViewWorkspaceScope(state, profile, item.brand, item.product)),
+      sopCategories: state.sopCategories.filter((item) => canViewWorkspaceScope(state, profile, item.brand, item.product)),
       users: [],
     };
     return Response.json({ state: visibleState, profile, revision });
@@ -56,7 +58,9 @@ export async function PUT(request: Request) {
     if (!session?.user) return Response.json({ error: "请先登录。" }, { status: 401 });
     const snapshot = await readWorkspaceSnapshot(); const current = snapshot.state;
     const profile = current.users.find((user) => user.id === session.user.id);
-    if (!profile || profile.role === "viewer") return Response.json({ error: "当前账号没有编辑权限。" }, { status: 403 });
+    if (!profile) return Response.json({ error: "当前账号没有编辑权限。" }, { status: 403 });
+    Object.assign(profile, readWorkspaceUserPermissions(current, profile));
+    if (!canEditGeneralContent(profile) && !hasAnyWorkspaceEdit(profile)) return Response.json({ error: "当前账号没有编辑权限。" }, { status: 403 });
     const body = await request.json() as { state?: typeof current; revision?: number };
     if (!body.state || !Array.isArray(body.state.brands) || !Array.isArray(body.state.products)) return Response.json({ error: "数据格式不正确。" }, { status: 400 });
     if (profile.role !== "admin") {
@@ -67,18 +71,20 @@ export async function PUT(request: Request) {
       body.state.productIds = current.productIds;
       body.state.brandIcons = current.brandIcons;
       body.state.productIcons = current.productIcons;
-      body.state.docCategories = current.docCategories;
-      body.state.docs = current.docs;
-      body.state.otherDocCategories = current.otherDocCategories;
-      body.state.otherDocs = current.otherDocs;
+      if (!canEditGeneralContent(profile)) {
+        body.state.docCategories = current.docCategories;
+        body.state.docs = current.docs;
+        body.state.otherDocCategories = current.otherDocCategories;
+        body.state.otherDocs = current.otherDocs;
+      }
       body.state.users = current.users;
       body.state.links = [
-        ...current.links.filter((item) => !isWorkspaceScopeAllowed(current, profile.scopes, item.brand, item.product)),
-        ...body.state.links.filter((item) => isWorkspaceScopeAllowed(current, profile.scopes, item.brand, item.product)),
+        ...current.links.filter((item) => !canEditWorkspaceScope(current, profile, item.brand, item.product)),
+        ...body.state.links.filter((item) => canEditWorkspaceScope(current, profile, item.brand, item.product)),
       ];
       body.state.sops = [
-        ...current.sops.filter((item) => !isWorkspaceScopeAllowed(current, profile.scopes, item.brand, item.product)),
-        ...body.state.sops.filter((item) => isWorkspaceScopeAllowed(current, profile.scopes, item.brand, item.product)),
+        ...current.sops.filter((item) => !canEditWorkspaceScope(current, profile, item.brand, item.product)),
+        ...body.state.sops.filter((item) => canEditWorkspaceScope(current, profile, item.brand, item.product)),
       ];
     }
     if (typeof body.revision !== "number") return Response.json({ error: "缺少数据版本，请刷新页面后重试。" }, { status: 428 });

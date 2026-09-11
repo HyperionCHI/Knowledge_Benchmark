@@ -3,7 +3,7 @@ import { getWorkspaceAccess } from "../../lib/authorize";
 import { safeAttachmentName } from "../../lib/file-policy";
 import { ensureWorkspaceRecordSchema } from "../../../db/workspace-records";
 import { ensureKnowledgeSchema } from "../../../db/knowledge";
-import { isWorkspaceScopeAllowed } from "../../lib/workspace-scopes";
+import { canEditWorkspaceScope } from "../../lib/workspace-permissions";
 import { isKnowledgeAttachmentScope, resolveKnowledgeAttachmentAccess } from "../../lib/knowledge-attachment-access";
 
 const clean = (value: FormDataEntryValue | null) => String(value ?? "").trim();
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!access.state) return Response.json({ error: "工作台状态不可用。" }, { status: 500 });
     ensureWorkspaceRecordSchema(access.state); ensureKnowledgeSchema(access.state);
     const documentAllowed = resolveKnowledgeAttachmentAccess(access.state, access.profile, { scope, brand, product }, documentId)?.canEdit ?? false;
-    const scopeAllowed = scope === "sop" && access.profile.role === "editor" && isWorkspaceScopeAllowed(access.state, access.profile.scopes, brand, product);
+    const scopeAllowed = scope === "sop" && canEditWorkspaceScope(access.state, access.profile, brand, product);
     if (access.profile.role !== "admin" && !scopeAllowed && !documentAllowed) return Response.json({ error: "没有正文图片上传权限。" }, { status: 403 });
     const value = form.get("file"); const file = value instanceof File ? value : null;
     if (!file) return Response.json({ error: "请选择图片。" }, { status: 400 });

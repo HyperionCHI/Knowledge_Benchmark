@@ -1,0 +1,86 @@
+/* One bounded editor workspace; only the text and preview scrollports scroll. */
+body .cherry-doc-modal {
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: clip;
+}
+body .cherry-doc-modal > header { min-width: 0; gap: 12px; }
+body .cherry-doc-modal > header > div { min-width: 0; }
+body .cherry-doc-modal > header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .cherry-doc-modal > header p { white-space: normal; }
+/* Keep this close control inside the fullscreen workspace, without CSS anchors. */
+body .cherry-doc-modal > header > button {
+  position: static; transform: none; position-anchor: auto; flex: none;
+}
+body .cherry-doc-modal .doc-editor-workspace,
+body .cherry-doc-modal .knowledge-editor-layout,
+body .cherry-doc-modal .knowledge-editor-layout > section {
+  min-width: 0; min-height: 0; overflow: clip;
+}
+body .cherry-doc-modal .knowledge-editor-layout { grid-template-rows: minmax(0, 1fr); }
+body .cherry-doc-modal .knowledge-editor-layout > section { grid-template-rows: 34px minmax(0, 1fr); }
+.knowledge-editor-source-body { position: relative; min-width: 0; min-height: 0; overflow: clip; }
+body .cherry-doc-modal .cherry-sop-editor { height: 100%; min-height: 0; }
+body .cherry-doc-modal .cherry-sop-editor .cherry {
+  display: flex; flex-flow: column nowrap; height: 100%; min-height: 0; overflow: clip;
+}
+body .cherry-doc-modal .cherry-sop-editor .cherry-toolbar { flex: 0 0 auto; }
+body .cherry-doc-modal .cherry-sop-editor .cherry-editor {
+  flex: 1 1 0; min-height: 0; max-height: none; overflow: clip;
+}
+body .cherry-doc-modal .cherry-sop-editor .cm-editor { height: 100%; min-height: 0; }
+body .cherry-doc-modal .cherry-sop-editor .cm-scroller {
+  min-height: 0; overflow: auto; overscroll-behavior: contain;
+}
+body .cherry-doc-modal .knowledge-editor-preview { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.knowledge-editor-preview-content { display: flow-root; min-width: 0; }
+.knowledge-editor-pane-switch { display: none; }
+body .cherry-doc-modal .editor-draft-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 5px 0; font-size: 12px; }
+body .cherry-doc-modal .editor-draft-recovery > span { display: inline; font-size: inherit; letter-spacing: normal; }
+.knowledge-details { border: 1px solid #dce4ed; border-radius: 6px; padding: 12px; margin: 16px 0; }
+.knowledge-details > summary { cursor: pointer; font-weight: 600; }
+.knowledge-panel { margin: 16px 0; padding: 14px; border: 1px solid #dce4ed; border-radius: 6px; }
+.knowledge-panel-title { margin-bottom: 8px; font-weight: 700; }
+.knowledge-panel-warning { background: #fff7e8; color: #78520e; }
+.knowledge-panel-danger { background: #fff2f2; color: #923947; }
+.knowledge-panel-success { background: #edf8f2; color: #246244; }
+.knowledge-panel-info,.knowledge-panel-tip,.knowledge-panel-note,.knowledge-panel-primary { background: #f0f5ff; }
+.knowledge-panel-left { text-align: left; }
+.knowledge-panel-center { text-align: center; }
+.knowledge-panel-right { text-align: right; }
+.knowledge-panel-justify { text-align: justify; }
+.knowledge-panel-2cols,.knowledge-panel-3cols,.knowledge-panel-cols { display: flex; gap: 18px; }
+.knowledge-panel-2cols > div,.knowledge-panel-3cols > div,.knowledge-panel-cols > div { flex: 1; min-width: 0; }
+.knowledge-panel-tabs > details { margin: 8px 0; }
+.knowledge-panel-tabs summary { cursor: pointer; font-weight: 600; }
+@media (max-width: 600px) { .knowledge-panel-2cols,.knowledge-panel-3cols,.knowledge-panel-cols { flex-direction: column; } }
+.knowledge-editor-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; background: white; }
+.knowledge-editor-fallback p { flex: none; margin: 0; padding: 10px; font-size: 13px; }
+.knowledge-editor-fallback button,.knowledge-editor-error button { margin-left: 8px; }
+.knowledge-editor-fallback textarea { min-height: 0; flex: 1; width: 100%; resize: none; border: 0; padding: 12px; font: 14px/1.7 monospace; }
+.knowledge-editor-error { position: absolute; z-index: 5; bottom: 0; margin: 0; padding: 8px; background: #fff4f5; }
+body .cherry-doc-modal .editor-attachment-panel { overflow: auto; overscroll-behavior: contain; }
+body .cherry-doc-modal .doc-editor-fields { min-width: 0; }
+body .cherry-doc-modal .doc-editor-fields > * { min-width: 0; }
+@media (max-width: 900px) {
+  body .cherry-doc-modal .doc-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body .cherry-doc-modal .markdown-import-control { grid-column: 1 / -1; }
+  body .cherry-doc-modal .knowledge-editor-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 0; }
+  .knowledge-editor-pane-switch { display: flex; gap: 8px; padding-bottom: 6px; }
+  .knowledge-editor-pane-switch button { flex: 1; min-height: 34px; border: 1px solid #c8d4e1; border-radius: 6px; background: #fff; font-size: 13px; }
+  .knowledge-editor-pane-switch button[aria-pressed="true"] { border-color: #2859e8; color: #1748c7; background: #eef4ff; }
+  body .knowledge-editor-layout[data-pane="source"] > .knowledge-editor-preview-section,
+  body .knowledge-editor-layout[data-pane="preview"] > .knowledge-editor-source { display: none; }
+  body .cherry-doc-modal .doc-editor-workspace { position: relative; grid-template-columns: minmax(0, 1fr) 40px; }
+  body .cherry-doc-modal .doc-editor-workspace.attachments-open { grid-template-columns: minmax(0, 1fr) 40px; }
+  body .cherry-doc-modal .doc-editor-side.open { position: absolute; z-index: 10; top: 0; right: 0; bottom: 0; width: min(320px, 100%); box-shadow: -4px 0 18px #17243b22; }
+}
+@media (max-height: 650px) {
+  body .cherry-doc-modal { padding: 8px 10px; }
+  body .cherry-doc-modal > header { margin-bottom: 6px; }
+  body .cherry-doc-modal > header p,
+  body .cherry-doc-modal > header span { display: none; }
+  body .cherry-doc-modal .doc-editor-fields { max-height: 120px; overflow: auto; margin-bottom: 6px; }
+  body .cherry-doc-modal .doc-editor-actions { margin-top: 4px; padding-top: 4px; }
+}

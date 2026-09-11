@@ -6,6 +6,14 @@ export type WorkspaceUser = {
   name: string;
   role: "admin" | "editor" | "viewer";
   scopes: string[];
+  generalPermission?: "view" | "edit";
+  grants?: WorkspaceScopeGrant[];
+};
+
+export type WorkspaceScopeGrant = {
+  scopeType: "all" | "brand" | "product";
+  scopeId: string;
+  permission: "none" | "view" | "edit";
 };
 
 export type WorkspaceState = {

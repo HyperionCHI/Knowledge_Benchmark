@@ -1,7 +1,8 @@
 import { currentSession } from "../../../lib/auth";
 import { getLocalDatabase } from "../../../../db/local";
 import { readWorkspaceState, writeWorkspaceState, type WorkspaceUser } from "../../../../db/workspace";
-import { normalizeWorkspaceScopes } from "../../../lib/workspace-scopes";
+import { grantsFromLegacyScopes, replaceWorkspaceUserPermissions } from "../../../../db/workspace-permissions";
+import { audit, ensureWorkspaceRecordSchema } from "../../../../db/workspace-records";
 
 async function requireAdmin(request: Request) {
   const session = await currentSession(request);
@@ -13,23 +14,28 @@ async function requireAdmin(request: Request) {
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const access = await requireAdmin(request); if (access.response) return access.response;
   const id = (await params).id;
-  const body = await request.json() as { name?: string; role?: WorkspaceUser["role"]; scopes?: string[] };
+  const body = await request.json() as { name?: string; role?: WorkspaceUser["role"]; scopes?: string[]; generalPermission?: "view" | "edit"; grants?: WorkspaceUser["grants"] };
   const name = body.name?.trim();
-  const role = body.role;
-  if (!name || !role || !["admin", "editor", "viewer"].includes(role)) return Response.json({ error: "成员名称或角色不正确。" }, { status: 400 });
+  const role = body.role === "admin" ? "admin" : "viewer";
+  if (!name || !body.role || !["admin", "editor", "viewer"].includes(body.role)) return Response.json({ error: "成员名称或身份不正确。" }, { status: 400 });
   if (id === access.session.user.id && role !== "admin") return Response.json({ error: "不能降低当前登录管理员自己的权限。" }, { status: 400 });
   const DB = getLocalDatabase();
   const result = await DB.prepare("UPDATE user SET name = ?, role = ?, updated_at = ? WHERE id = ?").bind(name, role, Date.now(), id).run();
   if (!result.meta.changes) return Response.json({ error: "成员不存在。" }, { status: 404 });
   const state = await readWorkspaceState();
-  const scopes = normalizeWorkspaceScopes(state, Array.isArray(body.scopes) ? body.scopes : ["*"]);
   const existing = state.users.find((user) => user.id === id);
-  if (existing) Object.assign(existing, { name, role, scopes });
+  if (existing) Object.assign(existing, { name, role, scopes: [] });
   else {
     const identity = await DB.prepare("SELECT email FROM user WHERE id = ?").bind(id).first<{ email: string }>();
-    state.users.push({ id, name, email: identity?.email || "", role, scopes });
+    state.users.push({ id, name, email: identity?.email || "", role, scopes: [] });
   }
   await writeWorkspaceState(state);
+  if (role !== "admin") {
+    const legacyPermission = body.role === "editor" ? "edit" : "view";
+    const grants = Array.isArray(body.grants) ? body.grants : grantsFromLegacyScopes(state, Array.isArray(body.scopes) ? body.scopes : [], legacyPermission);
+    replaceWorkspaceUserPermissions(state, id, body.generalPermission || legacyPermission, grants, access.session.user.id);
+  }
+  ensureWorkspaceRecordSchema(state); audit({ id: access.session.user.id, name: access.session.user.name }, "update", "user", id, `${name} · ${role === "admin" ? "管理员" : "普通成员"} · 权限已更新`);
   return Response.json({ updated: true });
 }
 

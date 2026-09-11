@@ -382,6 +382,31 @@ export const user = sqliteTable("user", {
   banExpires: integer("ban_expires", { mode: "timestamp" }),
 });
 
+export const workspaceScopePermissions = sqliteTable(
+  "workspace_scope_permissions",
+  {
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    scopeType: text("scope_type", { enum: ["all", "brand", "product"] }).notNull(),
+    scopeId: text("scope_id").notNull(),
+    permission: text("permission", { enum: ["none", "view", "edit"] }).notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.scopeType, table.scopeId] }),
+    index("idx_workspace_scope_permissions_user").on(table.userId, table.permission),
+  ],
+);
+
+export const workspaceGeneralPermissions = sqliteTable("workspace_general_permissions", {
+  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+  permission: text("permission", { enum: ["view", "edit"] }).notNull().default("view"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const session = sqliteTable("session", {
   id: text("id").primaryKey(),
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),

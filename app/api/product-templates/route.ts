@@ -1,7 +1,7 @@
 import { ensureWorkspaceAssetSchema, getWorkspaceAssetBindings, toProductTemplate, type ProductTemplateRow } from "../../../db/workspace-assets";
 import { getWorkspaceAccess, requireWorkspaceEditor } from "../../lib/authorize";
 import { safeAttachmentName, validateWorkspaceFile } from "../../lib/file-policy";
-import { isWorkspaceScopeAllowed } from "../../lib/workspace-scopes";
+import { canViewWorkspaceScope } from "../../lib/workspace-permissions";
 
 const clean = (value: FormDataEntryValue | null) => String(value ?? "").trim();
 
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   await ensureWorkspaceAssetSchema();
   const url = new URL(request.url); const brand = url.searchParams.get("brand")?.trim() || ""; const product = url.searchParams.get("product")?.trim() || "";
   if (!brand || !product) return Response.json({ error: "缺少品牌或产品参数。" }, { status: 400 });
-  if (access.profile.role !== "admin" && (!access.state || !isWorkspaceScopeAllowed(access.state, access.profile.scopes, brand, product))) return Response.json({ error: "没有该产品的访问权限。" }, { status: 403 });
+  if (!access.state || !canViewWorkspaceScope(access.state, access.profile, brand, product)) return Response.json({ error: "没有该产品的访问权限。" }, { status: 403 });
   const result = await getWorkspaceAssetBindings().DB.prepare("SELECT * FROM product_templates WHERE brand = ? AND product = ? ORDER BY updated_at DESC").bind(brand, product).all<ProductTemplateRow>();
   return Response.json({ templates: result.results.map(toProductTemplate) });
 }

@@ -1,5 +1,5 @@
 import { getWorkspaceAccess } from "../../lib/authorize";
-import { isWorkspaceScopeAllowed } from "../../lib/workspace-scopes";
+import { canViewWorkspaceScope } from "../../lib/workspace-permissions";
 import { ensureTerminologySchema } from "../../../db/terminology";
 import { ensureTemplateSchema } from "../../../db/templates";
 import { ensureWorkspaceAssetSchema, type WorkspaceAttachmentRow } from "../../../db/workspace-assets";
@@ -11,7 +11,7 @@ import { resolveOwnedKnowledgeAttachmentAccess } from "../../lib/knowledge-attac
 
 type SearchResultType = "文章" | "附件" | "术语";
 type SearchResult = { type: SearchResultType; title: string; desc: string; view: string; entityId: string; brand?: string; product?: string; url?: string };
-const allowed = (access: Awaited<ReturnType<typeof getWorkspaceAccess>>, brand: string, product: string) => !!access.profile && !!access.state && (access.profile.role === "admin" || isWorkspaceScopeAllowed(access.state, access.profile.scopes, brand, product));
+const allowed = (access: Awaited<ReturnType<typeof getWorkspaceAccess>>, brand: string, product: string) => !!access.profile && !!access.state && canViewWorkspaceScope(access.state, access.profile, brand, product);
 const searchSections = {
   docs: "通用资料与规章制度",
   otherDocs: "其它资料",

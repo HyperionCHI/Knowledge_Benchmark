@@ -54,3 +54,32 @@ test("does not nest an image zoom button inside a Markdown link", () => {
   assert.match(html, /<button class="markdown-image-zoom-trigger"/);
   assert.doesNotMatch(html, /<a[^>]*><button/);
 });
+
+test("renders Cherry formulas, panels and folding blocks in the shared preview", () => {
+  assert.match(render("$$\nx^2\n$$"), /class="katex/);
+  const panel = render("::: warning 注意\n**正文**\n:::");
+  assert.match(panel, /knowledge-panel-warning/);
+  assert.match(panel, /<strong>正文<\/strong>/);
+  const details = render("+++ 标题\n折叠正文\n+++");
+  assert.match(details, /<details/);
+  assert.match(details, /<summary>标题<\/summary>/);
+  assert.match(details, /折叠正文/);
+});
+
+test("keeps Cherry syntax literal in code blocks and does not allow directive HTML injection", () => {
+  const code = render("```text\n::: warning 注意\n+++ 折叠\n``` ");
+  assert.doesNotMatch(code, /knowledge-panel|<details/);
+  assert.match(code, /::: warning/);
+  const attack = render(':::script{src="https://example.test/evil.js"}\n恶意内容\n:::');
+  assert.doesNotMatch(attack, /<script/);
+});
+
+test("renders nested panels and keeps content in column layouts", () => {
+  const nested = render("::: warning 外层\n\n::: info 内层\n内文\n:::\n\n:::");
+  assert.match(nested, /knowledge-panel-warning/);
+  assert.match(nested, /knowledge-panel-info/);
+  const columns = render("::: 2cols\n第一列\n::\n第二列\n:::");
+  assert.match(columns, /knowledge-panel-2cols/);
+  assert.match(columns, /第一列/);
+  assert.match(columns, /第二列/);
+});

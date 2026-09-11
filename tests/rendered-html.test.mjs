@@ -39,7 +39,7 @@ test("includes the six workspace modules and built-in login flow", async () => {
   assert.match(workspace, /view === "sop-brands"[\s\S]*BrandPicker/);
   assert.match(workspace, /view === "sop-products"[\s\S]*ProductPicker/);
   assert.ok(workspace.indexOf('{ view: "other-docs"') < workspace.indexOf('{ view: "terms"'), "其它资料应位于术语库之前");
-  assert.match(workspace, /view === "other-docs"[\s\S]*<DocsPage kind="other"/);
+  assert.match(workspace, /view === "other-docs"[\s\S]*<DocsPage\b[^>]*kind="other"/);
   assert.match(workspace, /其它资料结构编辑/);
   assert.match(sopPage, /title="当前产品 SOP 目录"/);
   assert.match(sopPage, /SOP 结构编辑/);
@@ -56,6 +56,9 @@ test("includes the six workspace modules and built-in login flow", async () => {
   assert.match(authScreen, /requestSubmit\(\)/);
   assert.deepEqual(terminology.categories, [], "release copy should not bundle terminology categories");
   assert.deepEqual(terminology.terms, [], "release copy should not bundle terminology entries");
+  assert.match(authScreen, /name="username"[\s\S]*pattern=\{USERNAME_PATTERN\}[\s\S]*inputMode="url"[\s\S]*sanitizeUsername/);
+  assert.match(authScreen, /name="password"[\s\S]*pattern=\{ASCII_PASSWORD_PATTERN\}[\s\S]*inputMode="url"[\s\S]*sanitizeAsciiPassword/);
+  assert.match(authScreen, /密码只能使用半角英文、数字和符号/);
 });
 
 test("uses portable SQLite and local attachment storage", async () => {
@@ -220,10 +223,8 @@ test("uses a single-screen article editor with in-place attachment operations", 
   assert.match(cherry, /engine: \{ syntax: \{ table: \{ enableChart: false \} \} \}/);
   assert.match(cherry, /getCodeMirror\(\)\.scrollDOM/);
   assert.match(cherry, /querySelector<HTMLElement>\("\.knowledge-editor-preview"\)/);
-  assert.match(cherry, /editorScroll\.addEventListener\("scroll", syncPreviewScroll/);
-  assert.match(cherry, /previewScroll\.addEventListener\("scroll", syncEditorScroll/);
-  assert.match(cherry, /target\.scrollTop = progress \* Math\.max\(targetRange, 0\)/);
-  assert.match(cherry, /removeEventListener\("scroll", syncPreviewScroll\)/);
+  assert.match(cherry, /connectEditorScroll\(editorScroll, previewScroll\)/);
+  assert.match(cherry, /height: "100%"/);
   assert.match(cherry, /useImperativeHandle/);
   assert.match(cherry, /state\.selection\.main/);
   assert.match(cherry, /editor\.dispatch\(\{ changes:/);
@@ -375,6 +376,58 @@ test("keeps metadata-rich resources isolated to their owning knowledge article",
   assert.doesNotMatch(editor, /filter\(\(item: KnowledgeAttachment\) => item\.hasAttachment !== false/);
   assert.match(styles, /Shared resource records for general knowledge, SOP and other materials/);
 });
+test("uses hierarchical view and edit grants instead of a single global editor role", async () => {
+  const [workspace, permissions, usersRoute, authorize, styles] = await Promise.all([
+    source("app/components/WorkspaceApp.tsx"),
+    source("db/workspace-permissions.ts"),
+    source("app/api/users/route.ts"),
+    source("app/lib/authorize.ts"),
+    source("app/globals.css"),
+  ]);
+  assert.match(workspace, /function ScopePermissionTable/);
+  assert.match(workspace, /编辑权限自动包含查看权限/);
+  assert.match(workspace, /<b>查看<\/b><b>编辑<\/b>/);
+  assert.match(workspace, /aria-label={`\$\{label\} 查看`}/);
+  assert.match(workspace, /恢复继承/);
+  assert.match(workspace, /普通成员/);
+  assert.match(workspace, /通用内容/);
+  assert.doesNotMatch(workspace, /<option value="editor">编辑人员<\/option>/);
+  assert.match(permissions, /roles-and-scopes-to-permission-grants-v1/);
+  assert.match(permissions, /workspace_scope_permissions/);
+  assert.match(permissions, /workspace_general_permissions/);
+  assert.match(usersRoute, /replaceWorkspaceUserPermissions/);
+  assert.match(authorize, /canEditWorkspaceScope/);
+  assert.match(workspace, /member-permission-modal/);
+  assert.match(workspace, /brand-permission-grid/);
+  assert.match(styles, /brand-permission-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles, /scope-permission-head/);
+  assert.match(styles, /\.admin-console\{width:min\(1480px,calc\(100vw - 48px\)\)/);
+  assert.match(styles, /permissions-modal\.embedded \.permission-table\{min-width:1180px\}/);
+});
+
+test("keeps long document navigation titles readable", async () => {
+  const [workspace, documentTheme] = await Promise.all([
+    source("app/components/WorkspaceApp.tsx"),
+    source("app/ionic-doc-theme.css"),
+  ]);
+  assert.match(workspace, /title=\{item\.title\}/);
+  assert.match(documentTheme, /grid-template-columns: 328px minmax\(0, 1fr\)/);
+  assert.match(documentTheme, /button:not\(\.doc-group-toggle\) > span \{[^}]*flex: 1 1 auto;[^}]*-webkit-line-clamp: 2;/s);
+  assert.match(documentTheme, /button:not\(\.doc-group-toggle\) \{[^}]*white-space: normal;/s);
+});
+
+test("allows the document navigation rail to collapse", async () => {
+  const [workspace, documentTheme] = await Promise.all([
+    source("app/components/WorkspaceApp.tsx"),
+    source("app/ionic-doc-theme.css"),
+  ]);
+  assert.equal(workspace.match(/const \[navCollapsed, setNavCollapsed\] = useState\(false\)/g)?.length, 2);
+  assert.equal(workspace.match(/aria-label=\{navCollapsed \? "展开目录" : "收起目录"\}/g)?.length, 2);
+  assert.match(workspace, /ActionIcon name=\{navCollapsed \? "expandPanel" : "collapsePanel"\}/);
+  assert.match(documentTheme, /\.docs-layout\.collapsed \{ grid-template-columns: 58px minmax\(0, 1fr\); \}/);
+  assert.match(documentTheme, /@media \(max-width: 820px\)[\s\S]*\.docs-layout\.collapsed \{ grid-template-columns: 1fr; \}/);
+});
+
 test("uses stable drag handles, rollback-safe sorting, and consistent orphan attachment rules", async () => {
   const [workspace, styles, orderRoute, catalogOrderRoute, orphanScanner, cleanupRoute] = await Promise.all([
     source("app/components/WorkspaceApp.tsx"),
@@ -394,18 +447,19 @@ test("uses stable drag handles, rollback-safe sorting, and consistent orphan att
   assert.match(workspace, /function applyIdOrder/);
   assert.match(workspace, /selected\.has\(item\.id\) \? \{ \.\.\.byId\.get\(ids\[pointer\]\)!, sortOrder: pointer\+\+ \} : item/);
   assert.doesNotMatch(workspace, /const assignOrder/);
-  assert.match(workspace, /canSort=\{profile\.role !== "viewer"\}/);
+  assert.match(workspace, /canSort=\{profile\.role === "admin"\}/);
   assert.doesNotMatch(workspace, /startViewTransition/);
   assert.doesNotMatch(workspace, /<article draggable className=\{`\$\{productDrag/);
   assert.match(styles, /\.sorting-over\{[^}]*outline:/);
   assert.doesNotMatch(styles, /\.sorting-over\{[^}]*translateY/);
   assert.match(orderRoute, /"general", "other", "sop"/);
   assert.match(orderRoute, /"documents", "categories"/);
-  assert.match(orderRoute, /access\.profile\.role !== "admin" && access\.profile\.role !== "editor"/);
+  assert.match(orderRoute, /canEditGeneralContent\(access\.profile\)/);
+  assert.match(orderRoute, /canEditWorkspaceScope\(access\.state, access\.profile/);
   assert.match(orderRoute, /new Set\(requested\)\.size === requested\.length/);
-  assert.match(catalogOrderRoute, /access\.profile\.role !== "admin" && access\.profile\.role !== "editor"/);
+  assert.match(catalogOrderRoute, /access\.profile\.role !== "admin"/);
   assert.match(catalogOrderRoute, /mergeSubset/);
-  assert.match(catalogOrderRoute, /isWorkspaceScopeAllowed/);
+  assert.doesNotMatch(catalogOrderRoute, /isWorkspaceScopeAllowed/);
   assert.match(styles, /\.picker-sort-handle/);
   assert.match(styles, /--brand-card-uploaded-logo-opacity:\.50/);
   assert.match(styles, /--product-card-uploaded-logo-opacity:\.50/);

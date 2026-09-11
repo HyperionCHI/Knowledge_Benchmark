@@ -27,6 +27,14 @@ try {
   const initial = await bootstrap.GET();
   assert.deepEqual(await initial.json(), { needsSetup: true });
 
+  const rejectedBootstrapPassword = await bootstrap.POST(new Request("http://localhost:3999/api/auth-bootstrap", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "qa_admin", password: "中文-password-2026", name: "QA 管理员" }),
+  }));
+  assert.equal(rejectedBootstrapPassword.status, 400);
+  assert.deepEqual(await rejectedBootstrapPassword.json(), { error: "密码只能使用半角英文、数字和符号。" });
+
   const created = await bootstrap.POST(new Request("http://localhost:3999/api/auth-bootstrap", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -75,6 +83,14 @@ try {
 
   const anonymousExport = await knowledgeExportRoute.GET(new Request("http://localhost:3999/api/knowledge-export?kind=general"));
   assert.equal(anonymousExport.status, 401);
+
+  const rejectedMemberPassword = await usersRoute.POST(new Request("http://localhost:3999/api/users", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ username: "qa_rejected", password: "中文-password-2026", name: "QA 不应创建", role: "viewer", scopes: ["*"] }),
+  }));
+  assert.equal(rejectedMemberPassword.status, 400);
+  assert.deepEqual(await rejectedMemberPassword.json(), { error: "密码只能使用半角英文、数字和符号。" });
 
   const viewerCreated = await usersRoute.POST(new Request("http://localhost:3999/api/users", {
     method: "POST",

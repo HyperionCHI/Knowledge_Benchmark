@@ -1,5 +1,5 @@
 import { getWorkspaceAccess } from "../../../lib/authorize";
-import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
+import { canEditWorkspaceScope } from "../../../lib/workspace-permissions";
 import { audit, ensureWorkspaceRecordSchema, resolveProductNames } from "../../../../db/workspace-records";
 import { sqlite } from "../../../../db/local";
 
@@ -9,7 +9,7 @@ export async function PUT(request: Request) {
   const body = await request.json() as { productId?: string; cycle?: string; ids?: string[] };
   const target = body.productId ? resolveProductNames(access.state, body.productId) : null;
   if (!target || !body.productId || !body.cycle || !Array.isArray(body.ids)) return Response.json({ error: "排序参数不正确。" }, { status: 400 });
-  if (access.profile.role !== "admin" && (access.profile.role !== "editor" || !isWorkspaceScopeAllowed(access.state, access.profile.scopes, target.brand, target.product))) return Response.json({ error: "没有该产品的编辑权限。" }, { status: 403 });
+  if (!canEditWorkspaceScope(access.state, access.profile, target.brand, target.product)) return Response.json({ error: "没有该产品的编辑权限。" }, { status: 403 });
   ensureWorkspaceRecordSchema(access.state);
   const productId = body.productId, cycle = body.cycle, ids = body.ids;
   const rows = sqlite.prepare("SELECT id FROM tracker_links WHERE product_id = ? AND cycle = ? AND deleted_at IS NULL ORDER BY sort_order").all(productId, cycle) as Array<{ id: string }>;

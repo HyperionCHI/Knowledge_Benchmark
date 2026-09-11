@@ -1,5 +1,5 @@
 import { getWorkspaceAccess } from "../../../lib/authorize";
-import { isWorkspaceScopeAllowed } from "../../../lib/workspace-scopes";
+import { canEditGeneralContent, canEditWorkspaceScope } from "../../../lib/workspace-permissions";
 import { audit, ensureWorkspaceRecordSchema, resolveProductNames } from "../../../../db/workspace-records";
 import { GENERAL_KNOWLEDGE_SPACE_ID, OTHER_KNOWLEDGE_SPACE_ID, ensureKnowledgeSchema, getKnowledgeCategory, getKnowledgeSpace } from "../../../../db/knowledge";
 import { sqlite } from "../../../../db/local";
@@ -32,12 +32,12 @@ export async function PUT(request: Request) {
   if (body.kind === "sop") {
     const target = body.productId ? resolveProductNames(access.state, body.productId) : null;
     if (!target) return Response.json({ error: "产品不存在。" }, { status: 404 });
-    if (access.profile.role !== "admin" && (access.profile.role !== "editor" || !isWorkspaceScopeAllowed(access.state, access.profile.scopes, target.brand, target.product))) {
+    if (!canEditWorkspaceScope(access.state, access.profile, target.brand, target.product)) {
       return Response.json({ error: "没有该产品的排序权限。" }, { status: 403 });
     }
     space = getKnowledgeSpace("sop", body.productId);
   } else {
-    if (access.profile.role !== "admin" && access.profile.role !== "editor") return Response.json({ error: "当前账号没有资料排序权限。" }, { status: 403 });
+    if (!canEditGeneralContent(access.profile)) return Response.json({ error: "当前账号没有资料排序权限。" }, { status: 403 });
     const spaceId = body.kind === "other" ? OTHER_KNOWLEDGE_SPACE_ID : GENERAL_KNOWLEDGE_SPACE_ID;
     space = sqlite.prepare("SELECT id, kind, brand_id, product_id, title FROM knowledge_spaces WHERE id = ?").get(spaceId) as NonNullable<ReturnType<typeof getKnowledgeSpace>> | undefined;
   }

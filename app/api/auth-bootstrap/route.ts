@@ -1,4 +1,5 @@
 import { auth } from "../../lib/auth";
+import { isAsciiPassword } from "../../lib/credential-policy";
 import { getLocalDatabase } from "../../../db/local";
 
 function db() { return getLocalDatabase(); }
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
     const usernameValue = body.username?.trim().toLowerCase() || "";
     if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(usernameValue)) return Response.json({ error: "账号需为 3–30 位字母、数字、点、下划线或短横线。" }, { status: 400 });
     if (!body.password || body.password.length < 8) return Response.json({ error: "密码至少 8 位。" }, { status: 400 });
+    if (!isAsciiPassword(body.password)) return Response.json({ error: "密码只能使用半角英文、数字和符号。" }, { status: 400 });
     const result = await auth.api.signUpEmail({ body: { email: `${usernameValue}@knowledge-workbench.local`, name: body.name?.trim() || usernameValue, password: body.password, username: usernameValue, displayUsername: usernameValue } });
     await db().prepare("UPDATE user SET role = 'admin' WHERE id = ?").bind(result.user.id).run();
     return Response.json({ created: true });
