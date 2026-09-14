@@ -347,7 +347,7 @@
 | `linebreak@1.1.0` | 传递运行依赖 | `MIT` | <https://github.com/devongovett/linebreaker> |
 | `lodash-es@4.18.1` | 传递运行依赖 | `MIT` | <lodash/lodash> |
 | `longest-streak@3.1.0` | 传递运行依赖 | `MIT` | <wooorm/longest-streak> |
-| `lucide@1.31.0` | 直接运行依赖 | `ISC` | <https://github.com/lucide-icons/lucide> |
+| `lucide@1.44.0` | 直接运行依赖 | `ISC` | <https://github.com/lucide-icons/lucide> |
 | `magic-string@0.30.21` | 传递运行依赖 | `MIT` | <https://github.com/Rich-Harris/magic-string> |
 | `markdown-table@3.0.4` | 传递运行依赖 | `MIT` | <wooorm/markdown-table> |
 | `marked@16.4.2` | 传递运行依赖 | `MIT` | <https://github.com/markedjs/marked> |
