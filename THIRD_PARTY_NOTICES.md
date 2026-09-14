@@ -2,7 +2,7 @@
 
 > 此文件由 `scripts/generate-third-party-notices.mjs` 根据当前生产依赖自动生成，请勿手工编辑。
 
-本发布使用 504 个已解析的生产依赖包版本，其中 17 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
+本发布使用 519 个已解析的生产依赖包版本，其中 17 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
 
 | 组件 | 类型 | 许可证 | 上游源码 |
 | --- | --- | --- | --- |
@@ -56,6 +56,13 @@
 | `@replit/codemirror-vim-core@0.1.0` | 传递运行依赖 | `MIT` | <https://github.com/replit/codemirror-vim> |
 | `@replit/codemirror-vim@6.4.0` | 传递运行依赖 | `MIT` | <https://github.com/replit/codemirror-vim> |
 | `@resvg/resvg-wasm@2.4.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/yisibl/resvg-js> |
+| `@rolldown/binding-darwin-arm64@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-darwin-x64@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-linux-arm64-gnu@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-linux-arm64-musl@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-linux-x64-gnu@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-linux-x64-musl@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
+| `@rolldown/binding-win32-arm64-msvc@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
 | `@rolldown/binding-win32-x64-msvc@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/rolldown> |
 | `@rolldown/pluginutils@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/rolldown/plugins> |
 | `@shuding/opentype.js@1.4.0-beta.0` | 传递运行依赖 | `MIT` | <https://github.com/opentypejs/opentype.js> |
@@ -273,6 +280,7 @@
 | `fflate@0.8.3` | 直接运行依赖 | `MIT` | <https://github.com/101arrowz/fflate> |
 | `fill-range@7.1.1` | 传递运行依赖 | `MIT` | <jonschlinkert/fill-range> |
 | `form-data@4.0.6` | 传递运行依赖 | `MIT` | <https://github.com/form-data/form-data> |
+| `fsevents@2.3.3` | 传递运行依赖 | `MIT` | <https://github.com/fsevents/fsevents> |
 | `function-bind@1.1.2` | 传递运行依赖 | `MIT` | <https://github.com/Raynos/function-bind> |
 | `get-intrinsic@1.3.0` | 传递运行依赖 | `MIT` | <https://github.com/ljharb/get-intrinsic> |
 | `get-proto@1.0.1` | 传递运行依赖 | `MIT` | <https://github.com/ljharb/get-proto> |
@@ -325,6 +333,13 @@
 | `kysely@0.29.5` | 传递运行依赖 | `MIT` | <https://github.com/kysely-org/kysely> |
 | `layout-base@1.0.2` | 传递运行依赖 | `MIT` | <https://github.com/iVis-at-Bilkent/layout-base> |
 | `layout-base@2.0.1` | 传递运行依赖 | `MIT` | <https://github.com/iVis-at-Bilkent/layout-base> |
+| `lightningcss-darwin-arm64@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-darwin-x64@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-linux-arm64-gnu@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-linux-arm64-musl@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-linux-x64-gnu@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-linux-x64-musl@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
+| `lightningcss-win32-arm64-msvc@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
 | `lightningcss-win32-x64-msvc@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
 | `lightningcss@1.33.0` | 传递运行依赖 | `MPL-2.0` | <https://github.com/parcel-bundler/lightningcss> |
 | `linebreak@1.1.0` | 传递运行依赖 | `MIT` | <https://github.com/devongovett/linebreaker> |

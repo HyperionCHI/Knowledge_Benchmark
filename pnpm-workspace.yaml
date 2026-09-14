@@ -3,3 +3,18 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+
+# Keep the checked-in license inventory identical across supported hosts.
+# Native optional packages are installed for each release target even when
+# installation runs on another operating system.
+supportedArchitectures:
+  os:
+    - win32
+    - linux
+    - darwin
+  cpu:
+    - x64
+    - arm64
+  libc:
+    - glibc
+    - musl

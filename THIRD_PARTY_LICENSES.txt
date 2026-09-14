@@ -6,7 +6,7 @@ Each section lists the packages to which the following text applies.
 
 --------------------------------------------------------------------------------
 LICENSE
-Packages: @antfu/install-pkg@1.1.0 (LICENSE), @better-auth/utils@0.4.2 (canonical-MIT.txt), @better-auth/utils@0.5.0 (canonical-MIT.txt), @rolldown/binding-win32-x64-msvc@1.0.1 (canonical-MIT.txt), @unpic/core@1.0.3 (canonical-MIT.txt), agent-base@6.0.2 (canonical-MIT.txt), css-box-shadow@1.0.0-3 (canonical-MIT.txt), fastdom@1.0.12 (canonical-MIT.txt), http-proxy-agent@5.0.0 (canonical-MIT.txt), https-proxy-agent@5.0.1 (canonical-MIT.txt), is-potential-custom-element-name@1.0.1 (canonical-MIT.txt), punycode@2.3.1 (canonical-MIT.txt), rehype-katex@7.0.1 (canonical-MIT.txt), remark-math@6.0.0 (canonical-MIT.txt), strictdom@1.0.1 (canonical-MIT.txt), string.prototype.codepointat@0.2.1 (canonical-MIT.txt), unpic@4.2.2 (canonical-MIT.txt), yoga-layout@3.2.1 (canonical-MIT.txt)
+Packages: @antfu/install-pkg@1.1.0 (LICENSE), @better-auth/utils@0.4.2 (canonical-MIT.txt), @better-auth/utils@0.5.0 (canonical-MIT.txt), @rolldown/binding-darwin-arm64@1.0.1 (canonical-MIT.txt), @rolldown/binding-darwin-x64@1.0.1 (canonical-MIT.txt), @rolldown/binding-linux-arm64-gnu@1.0.1 (canonical-MIT.txt), @rolldown/binding-linux-arm64-musl@1.0.1 (canonical-MIT.txt), @rolldown/binding-linux-x64-gnu@1.0.1 (canonical-MIT.txt), @rolldown/binding-linux-x64-musl@1.0.1 (canonical-MIT.txt), @rolldown/binding-win32-arm64-msvc@1.0.1 (canonical-MIT.txt), @rolldown/binding-win32-x64-msvc@1.0.1 (canonical-MIT.txt), @unpic/core@1.0.3 (canonical-MIT.txt), agent-base@6.0.2 (canonical-MIT.txt), css-box-shadow@1.0.0-3 (canonical-MIT.txt), fastdom@1.0.12 (canonical-MIT.txt), http-proxy-agent@5.0.0 (canonical-MIT.txt), https-proxy-agent@5.0.1 (canonical-MIT.txt), is-potential-custom-element-name@1.0.1 (canonical-MIT.txt), punycode@2.3.1 (canonical-MIT.txt), rehype-katex@7.0.1 (canonical-MIT.txt), remark-math@6.0.0 (canonical-MIT.txt), strictdom@1.0.1 (canonical-MIT.txt), string.prototype.codepointat@0.2.1 (canonical-MIT.txt), unpic@4.2.2 (canonical-MIT.txt), yoga-layout@3.2.1 (canonical-MIT.txt)
 --------------------------------------------------------------------------------
 MIT License
 
@@ -4467,6 +4467,33 @@ Copyright (c) 2012 Felix Geisendörfer (felix@debuggable.com) and contributors
 
 --------------------------------------------------------------------------------
 LICENSE
+Packages: fsevents@2.3.3 (LICENSE)
+--------------------------------------------------------------------------------
+MIT License
+-----------
+
+Copyright (C) 2010-2020 by Philipp Dunkel, Ben Noordhuis, Elan Shankar, Paul Miller
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+--------------------------------------------------------------------------------
+LICENSE
 Packages: function-bind@1.1.2 (LICENSE)
 --------------------------------------------------------------------------------
 Copyright (c) 2013 Raynos.
@@ -5286,7 +5313,7 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 LICENSE
-Packages: lightningcss-win32-x64-msvc@1.33.0 (LICENSE), lightningcss@1.33.0 (LICENSE)
+Packages: lightningcss-darwin-arm64@1.33.0 (LICENSE), lightningcss-darwin-x64@1.33.0 (LICENSE), lightningcss-linux-arm64-gnu@1.33.0 (LICENSE), lightningcss-linux-arm64-musl@1.33.0 (LICENSE), lightningcss-linux-x64-gnu@1.33.0 (LICENSE), lightningcss-linux-x64-musl@1.33.0 (LICENSE), lightningcss-win32-arm64-msvc@1.33.0 (LICENSE), lightningcss-win32-x64-msvc@1.33.0 (LICENSE), lightningcss@1.33.0 (LICENSE)
 --------------------------------------------------------------------------------
 Mozilla Public License Version 2.0
 ==================================
