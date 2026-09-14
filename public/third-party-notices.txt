@@ -2,7 +2,7 @@
 
 > 此文件由 `scripts/generate-third-party-notices.mjs` 根据当前生产依赖自动生成，请勿手工编辑。
 
-本发布使用 519 个已解析的生产依赖包版本，其中 17 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
+本发布使用 521 个已解析的生产依赖包版本，其中 17 个为直接依赖。完整许可证和上游 NOTICE 文本见 `THIRD_PARTY_LICENSES.txt`；MPL-2.0 组件的对应源码见 `MPL_SOURCE_OFFER.md`。
 
 | 组件 | 类型 | 许可证 | 上游源码 |
 | --- | --- | --- | --- |
@@ -171,6 +171,7 @@
 | `color-name@1.1.4` | 传递运行依赖 | `MIT` | <https://github.com/colorjs/color-name> |
 | `combined-stream@1.0.8` | 传递运行依赖 | `MIT` | <https://github.com/felixge/node-combined-stream> |
 | `comma-separated-tokens@2.0.3` | 传递运行依赖 | `MIT` | <wooorm/comma-separated-tokens> |
+| `commander@15.0.0` | 传递运行依赖 | `MIT` | <https://github.com/tj/commander.js> |
 | `commander@2.20.3` | 传递运行依赖 | `MIT` | <https://github.com/tj/commander.js> |
 | `commander@7.2.0` | 传递运行依赖 | `MIT` | <https://github.com/tj/commander.js> |
 | `commander@8.3.0` | 传递运行依赖 | `MIT` | <https://github.com/tj/commander.js> |
@@ -328,7 +329,8 @@
 | `jose@6.2.9` | 传递运行依赖 | `MIT` | <panva/jose> |
 | `jsdom@19.0.0` | 传递运行依赖 | `MIT` | <jsdom/jsdom> |
 | `json-schema-traverse@1.0.0` | 传递运行依赖 | `MIT` | <https://github.com/epoberezkin/json-schema-traverse> |
-| `katex@0.16.47` | 直接运行依赖 | `MIT` | <https://github.com/KaTeX/KaTeX> |
+| `katex@0.16.47` | 传递运行依赖 | `MIT` | <https://github.com/KaTeX/KaTeX> |
+| `katex@0.18.7` | 直接运行依赖 | `MIT` | <https://github.com/KaTeX/KaTeX> |
 | `khroma@2.1.0` | 传递运行依赖 | `MIT` | <github:fabiospampinato/khroma> |
 | `kysely@0.29.5` | 传递运行依赖 | `MIT` | <https://github.com/kysely-org/kysely> |
 | `layout-base@1.0.2` | 传递运行依赖 | `MIT` | <https://github.com/iVis-at-Bilkent/layout-base> |
