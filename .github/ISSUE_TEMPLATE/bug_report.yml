@@ -28,7 +28,7 @@ body:
     id: environment
     attributes:
       label: Environment / 环境
-      placeholder: Windows 11, Node.js 22.13, Chrome 140
+      placeholder: Windows 11, Node.js 22.23.2, Chrome 140
   - type: textarea
     id: logs
     attributes:

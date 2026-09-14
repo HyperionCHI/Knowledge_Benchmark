@@ -27,7 +27,7 @@
 
 ## 环境要求
 
-- Node.js 22.13 或更高版本
+- Node.js 22.14 或更高版本（推荐 Node.js 22.23.2）
 - pnpm（推荐使用与 `pnpm-lock.yaml` 匹配的版本）
 - Windows、macOS 或 Linux
 

@@ -51,10 +51,9 @@ function Get-WorkbenchTrustedOrigins([int]$Port) {
 
 try {
   $node = Find-NodeExecutable
-  if (-not $node) { throw "Node.js was not found. Install Node.js 22 or newer and try again." }
-  $nodeMajor = & $node -p 'parseInt(process.versions.node, 10)'
-  $nodeMajor = [int]$nodeMajor
-  if ($nodeMajor -lt 22) { throw "Node.js $nodeMajor is too old. Node.js 22 or newer is required." }
+  if (-not $node) { throw "Node.js was not found. Install Node.js 22.14 or newer and try again." }
+  $nodeVersion = [version](& $node -p 'process.versions.node')
+  if ($nodeVersion -lt [version]'22.14.0') { throw "Node.js $nodeVersion is too old. Node.js 22.14 or newer is required." }
   $env:PATH = "$(Split-Path -Parent $node);$env:PATH"
 
   $port = 3001

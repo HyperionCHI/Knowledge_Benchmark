@@ -25,7 +25,7 @@ This repository is a sanitized public release. It contains no production databas
 
 ## Quick start
 
-Requirements: Node.js 22.13 or newer and pnpm 11.19.
+Requirements: Node.js 22.14 or newer (22.23.2 recommended) and pnpm 11.19.
 
 ```bash
 git clone https://github.com/HyperionCHI/Knowledge_Benchmark.git
